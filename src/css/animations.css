@@ -1,0 +1,419 @@
+/* ===== ANIMATIONS GLOBALES ===== */
+
+/* Fade in général */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Slide up depuis le bas */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* Float (flottement de l'ange) */
+@keyframes floatAngel {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-20px);
+    }
+}
+
+/* Pulse subtle */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Shake (tremblement) */
+@keyframes shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-5px);
+    }
+    75% {
+        transform: translateX(5px);
+    }
+}
+
+/* Glow/Éclat */
+@keyframes glow {
+    0%, 100% {
+        filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.3));
+    }
+    50% {
+        filter: drop-shadow(0 0 20px rgba(212, 175, 55, 0.6));
+    }
+}
+
+/* ===== ANIMATIONS D'ENTRÉE ===== */
+
+.fade-in {
+    animation: fadeIn 0.6s ease-out forwards;
+}
+
+.slide-up {
+    animation: slideUp 0.6s ease-out forwards;
+}
+
+/* Cascaded animation (retard) */
+.fade-in-cascade {
+    opacity: 0;
+    animation: fadeIn 0.6s ease-out forwards;
+}
+
+.fade-in-cascade:nth-child(1) { animation-delay: 0s; }
+.fade-in-cascade:nth-child(2) { animation-delay: 0.1s; }
+.fade-in-cascade:nth-child(3) { animation-delay: 0.2s; }
+.fade-in-cascade:nth-child(4) { animation-delay: 0.3s; }
+.fade-in-cascade:nth-child(5) { animation-delay: 0.4s; }
+
+/* ===== ANIMATIONS D'INTERACTION ===== */
+
+/* Boutons qui se remplissent */
+.choice-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.choice-btn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(212, 175, 55, 0.2);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+    z-index: -1;
+}
+
+.choice-btn:hover::after {
+    transform: scaleX(1);
+}
+
+/* Animation du clic */
+@keyframes buttonClick {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(0.95);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.choice-btn:active {
+    animation: buttonClick 0.3s ease;
+}
+
+/* ===== ANIMATIONS DE STATUT ===== */
+
+/* Barre d'alignement qui remplit */
+@keyframes barFill {
+    from {
+        width: 0;
+    }
+    to {
+        width: var(--width);
+    }
+}
+
+.bar-fill {
+    animation: barFill 0.8s ease-out;
+}
+
+/* Changement de couleur progressif */
+@keyframes colorShift {
+    from {
+        filter: hue-rotate(0deg);
+    }
+    to {
+        filter: hue-rotate(360deg);
+    }
+}
+
+/* ===== ANIMATIONS DE TEXTE ===== */
+
+/* Texte qui s'affiche mot par mot */
+@keyframes revealText {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.chapter-text p {
+    animation: revealText 0.8s ease-out forwards;
+}
+
+.chapter-text p:nth-child(1) { animation-delay: 0.2s; }
+.chapter-text p:nth-child(2) { animation-delay: 0.4s; }
+.chapter-text p:nth-child(3) { animation-delay: 0.6s; }
+
+/* ===== ANIMATIONS DE TRANSITION ===== */
+
+/* Transition au changement d'ange */
+@keyframes angelTransition {
+    0% {
+        opacity: 1;
+        filter: brightness(1);
+    }
+    50% {
+        opacity: 0.7;
+        filter: brightness(1.2);
+    }
+    100% {
+        opacity: 1;
+        filter: brightness(1);
+    }
+}
+
+.angel-transitioning #angelSvg {
+    animation: angelTransition 2s ease-in-out;
+}
+
+/* ===== ANIMATIONS DE CHARGEMENT ===== */
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.loading-spinner {
+    animation: spin 1s linear infinite;
+}
+
+.loading-dots span {
+    animation: bounce 1.4s infinite;
+}
+
+.loading-dots span:nth-child(1) { animation-delay: 0s; }
+.loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+/* ===== ANIMATIONS DE NOTIFICATION ===== */
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+.notification {
+    animation: slideInRight 0.3s ease-out;
+}
+
+.notification.hide {
+    animation: slideOutRight 0.3s ease-out;
+}
+
+/* ===== ANIMATIONS DE MODALE ===== */
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+    }
+    to {
+        opacity: 1;
+        backdrop-filter: blur(5px);
+    }
+}
+
+@keyframes modalScaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.death-modal.show {
+    animation: modalFadeIn 0.4s ease-out;
+}
+
+.death-content {
+    animation: modalScaleIn 0.4s ease-out;
+}
+
+/* ===== HOVER EFFECTS ===== */
+
+/* Glow au survol */
+.choice-btn:hover {
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.4),
+                inset 0 0 10px rgba(212, 175, 55, 0.1);
+}
+
+/* Scale au survol */
+.resurrection-btn:hover {
+    transform: scale(1.05);
+}
+
+/* ===== EFFETS DE SCROLL ===== */
+
+/* Parallax subtle */
+@keyframes parallaxShift {
+    from {
+        transform: translateY(0);
+    }
+    to {
+        transform: translateY(-50px);
+    }
+}
+
+.angel-section.scrolling {
+    animation: parallaxShift 0.6s ease-out forwards;
+}
+
+/* ===== ANIMATIONS CONTINUES ===== */
+
+/* Breath (respiration) */
+@keyframes breath {
+    0%, 100% {
+        filter: brightness(1);
+        opacity: 1;
+    }
+    50% {
+        filter: brightness(1.1);
+        opacity: 0.95;
+    }
+}
+
+.angel-head-wrapper {
+    animation: floatAngel 4s ease-in-out infinite,
+               breath 3s ease-in-out infinite;
+}
+
+/* ===== DISABLE ANIMATIONS POUR PERFORMANCE ===== */
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ===== ANIMATIONS SPÉCIALES ===== */
+
+/* Effet de "glitch" (corruption) */
+@keyframes glitch {
+    0% {
+        clip-path: inset(40% 0 61% 0);
+        transform: translate(-1px, -2px);
+    }
+    20% {
+        clip-path: inset(92% 0 1% 0);
+        transform: translate(2px, 1px);
+    }
+    40% {
+        clip-path: inset(43% 0 1% 0);
+        transform: translate(-2px, 1px);
+    }
+    60% {
+        clip-path: inset(25% 0 58% 0);
+        transform: translate(1px, 2px);
+    }
+    80% {
+        clip-path: inset(54% 0 7% 0);
+        transform: translate(-1px, -1px);
+    }
+    100% {
+        clip-path: inset(58% 0 43% 0);
+        transform: translate(0, 0);
+    }
+}
+
+/* Appliquer le glitch si mauvais alignement */
+.angel-corrupted {
+    animation: glitch 0.15s infinite;
+}
+
+/* ===== RESPONSIVE ANIMATIONS ===== */
+
+@media (max-width: 768px) {
+    /* Animations plus rapides sur mobile */
+    * {
+        --transition-speed: 0.15s;
+    }
+
+    .questions-grid {
+        animation: slideUp 0.4s ease-out forwards;
+    }
+
+    @keyframes floatAngel {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+}
+
+/* ===== PRINT STYLES ===== */
+
+@media print {
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
+}

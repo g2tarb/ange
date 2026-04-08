@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L'Ange Maudit - Une Histoire Unique</title>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="../src/css/main.css">
+    <link rel="stylesheet" href="../src/css/angel.css">
+    <link rel="stylesheet" href="../src/css/animations.css">
+    
+    <!-- Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js');
+        }
+    </script>
+</head>
+<body>
+    <div class="angel-app">
+        <!-- ANGE ET QUESTIONS (FIXED) -->
+        <div class="angel-section">
+            <div class="angel-head-wrapper">
+                <svg id="angelSvg" class="angel-svg" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">
+                    <!-- SVG sera générée par JS -->
+                </svg>
+            </div>
+
+            <!-- QUESTIONS -->
+            <div class="questions-container">
+                <div class="questions-title">Les paroles de l'Ange</div>
+                <div class="questions-grid" id="questionsGrid">
+                    <!-- Généré par JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- STATUS BAR -->
+        <div class="angel-status">
+            <div class="status-label">Alignement</div>
+            <div class="alignment-bars">
+                <div class="alignment-item">
+                    <span class="bar-label">Bon</span>
+                    <div class="bar">
+                        <div class="bar-fill" id="goodBar" style="width: 50%;"></div>
+                    </div>
+                </div>
+                <div class="alignment-item">
+                    <span class="bar-label">Neutre</span>
+                    <div class="bar">
+                        <div class="bar-fill" id="neutralBar" style="width: 50%;"></div>
+                    </div>
+                </div>
+                <div class="alignment-item">
+                    <span class="bar-label">Mauvais</span>
+                    <div class="bar">
+                        <div class="bar-fill" id="evilBar" style="width: 50%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTENU NARRATIF (Scroll) -->
+        <div class="narrative-content">
+            <div class="chapter-header">
+                <div class="chapter-number" id="chapterNumber">Chapitre 1</div>
+                <h1 class="chapter-title" id="chapterTitle">Le Premier Choix</h1>
+                <div class="chapter-divider"></div>
+            </div>
+            <div class="chapter-text" id="chapterText">
+                <p>L'ange se tient devant vous, ses ailes repliées, ses yeux pénétrants vous fixant avec une curiosité ancienne...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE MORT -->
+    <div class="death-modal" id="deathModal">
+        <div class="death-content">
+            <div class="death-title">Requiescat In Pace</div>
+            <div class="death-info" id="deathInfo">
+                L'ange s'est éteint après vos choix.<br/>
+                <strong>Histoire Figée: Tragédie</strong><br/>
+                Votre saga est sauvegardée à jamais.
+            </div>
+            <button class="resurrection-btn" onclick="resurrectAngel()">Résurrection - 2€</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../src/js/config.js"></script>
+    <script src="../src/js/svgBuilder.js"></script>
+    <script src="../src/js/gameState.js"></script>
+    <script src="../src/js/questions.js"></script>
+    <script src="../src/js/animations.js"></script>
+    <script src="../src/js/api.js"></script>
+    <script src="../src/js/app.js"></script>
+</body>
+</html>
