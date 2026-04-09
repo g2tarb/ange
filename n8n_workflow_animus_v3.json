@@ -1,0 +1,360 @@
+{
+  "name": "ANIMUS — Choice Engine V3",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "animus-choice",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Access-Control-Allow-Headers", "value": "Content-Type" }
+            ]
+          }
+        }
+      },
+      "id": "webhook-entry",
+      "name": "Webhook — Choice Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 400],
+      "webhookId": "animus-choice"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract & normalize input\nconst body = $input.first().json.body;\nconst avatar = body.avatar || 'angel';\nconst stats = body.stats || { health: 80, happiness: 75, wealth: 40, morality: 70 };\nconst karma = body.karma || 75;\nconst day = body.day || 1;\nconst chapter = body.chapter || 1;\nconst age = body.age || 16;\nconst name = body.name || 'Inconnu';\nconst city = body.city || 'Paris';\nconst history = body.history || [];\n\n// ============ DEATH RISK CALCULATION ============\nlet baseDeathRisk = 0;\n// Age-based mortality curve\nif (age < 20) baseDeathRisk = 0.2;\nelse if (age < 30) baseDeathRisk = 0.5;\nelse if (age < 50) baseDeathRisk = 1.5;\nelse if (age < 65) baseDeathRisk = 4;\nelse if (age < 75) baseDeathRisk = 10;\nelse if (age < 85) baseDeathRisk = 25;\nelse baseDeathRisk = 50;\n\n// Health penalty\nif (stats.health < 20) baseDeathRisk += 15;\nelse if (stats.health < 40) baseDeathRisk += 5;\n\n// Avatar multiplier\nlet deathMultiplier = 1.0;\nif (avatar === 'neutral') deathMultiplier = 1.1;\nelse if (avatar === 'fallen') deathMultiplier = 1.5;\nelse if (avatar === 'devil') deathMultiplier = 2.5;\nelse if (avatar === 'angel') deathMultiplier = 0.7;\n\nconst finalDeathRisk = Math.min(baseDeathRisk * deathMultiplier, 95);\nconst deathRoll = Math.random() * 100;\nconst isDead = deathRoll < finalDeathRisk;\n\n// ============ HAPPINESS CAP (Angel needs >80%) ============\nconst angelUnlocked = stats.happiness > 80;\n\n// ============ CHOICE POOL CATEGORY ============\nlet poolTag = avatar;\nif (avatar === 'angel' && !angelUnlocked) poolTag = 'angel_locked';\n\nreturn [{\n  json: {\n    avatar, stats, karma, day, chapter, age, name, city, history,\n    finalDeathRisk: Math.round(finalDeathRisk * 100) / 100,\n    isDead, deathRoll: Math.round(deathRoll * 100) / 100,\n    angelUnlocked, poolTag,\n    deathMultiplier\n  }\n}];"
+      },
+      "id": "compute-risk",
+      "name": "Compute Risk & Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            { "outputIndex": 0, "value": true },
+            { "outputIndex": 1, "value": false }
+          ]
+        },
+        "dataType": "boolean",
+        "value1": "={{ $json.isDead }}"
+      },
+      "id": "check-death",
+      "name": "Is Dead?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            { "outputIndex": 0, "value": "angel" },
+            { "outputIndex": 1, "value": "angel_locked" },
+            { "outputIndex": 2, "value": "neutral" },
+            { "outputIndex": 3, "value": "fallen" },
+            { "outputIndex": 4, "value": "devil" }
+          ]
+        },
+        "dataType": "string",
+        "value1": "={{ $json.poolTag }}"
+      },
+      "id": "avatar-router",
+      "name": "Route by Avatar",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [950, 500]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Tu es le moteur narratif du jeu ANIMUS. Tu generes des choix de vie pour un personnage guide par L'ANGE HEUREUX.\n\nLe bonheur du personnage est SUPERIEUR a 80% — les choix ULTRA POSITIFS sont DEBLOQUES.\n\nPOOL DE 200+ EVENEMENTS POSITIFS POSSIBLES (pioche 3 pertinents selon l'age/contexte):\n— AMOUR: mariage parfait, coup de foudre, reconciliation familiale, declaration d'amour reciproque, retrouver un amour perdu\n— FAMILLE: naissance d'un enfant surdoue, adoption reussie, reunion familiale emouvante, enfant qui guerit d'une maladie\n— FORTUNE: gagner au loto, heritage inattendu, investissement x100, promotion PDG, bourse d'excellence\n— SANTE: guerison miraculeuse, decouvrir un remede, record sportif, longevite exceptionnelle\n— CARRIERE: prix Nobel, best-seller mondial, startup licorne, invention revolutionnaire, Oscar/Cesar\n— SPIRITUEL: illumination, sauver une vie, pardon ultime, voyage transcendant, mentor legendaire\n— SOCIAL: devenir maire, fonder une ONG, discours historique, renommee mondiale, amitie eternelle\n— CHANCE: trouver un tresor, double arc-en-ciel prophetique, rencontre avec une celebrite qui change ta vie\n\nREGLES:\n- Age du perso: ={{ $json.age }} ans. Adapte les choix a l'age.\n- Stats actuelles: Sante=={{ $json.stats.health }}, Bonheur=={{ $json.stats.happiness }}, Richesse=={{ $json.stats.wealth }}, Moralite=={{ $json.stats.morality }}\n- Les choix doivent TOUS etre positifs ou tres positifs\n- Chaque choix a un impact sur les stats (JSON)\n- Reponds UNIQUEMENT en JSON valide, pas de markdown"
+            },
+            {
+              "role": "user",
+              "content": "Personnage: ={{ $json.name }}, ={{ $json.age }} ans, vit a ={{ $json.city }}.\nStats: Sante=={{ $json.stats.health }}, Bonheur=={{ $json.stats.happiness }}, Richesse=={{ $json.stats.wealth }}, Moralite=={{ $json.stats.morality }}.\nKarma: ={{ $json.karma }}. Jour ={{ $json.day }}, Chapitre ={{ $json.chapter }}.\nHistorique recent: ={{ JSON.stringify($json.history || []) }}\n\nGenere exactement 3 choix AU FORMAT JSON STRICT:\n{\n  \"narrative\": \"[2-3 phrases decrivant la situation actuelle]\",\n  \"chapter_title\": \"[Titre poetique du chapitre]\",\n  \"whisper\": \"[Murmure de l'ange au joueur, 1 phrase douce]\",\n  \"choices\": [\n    {\n      \"text\": \"[Description du choix, 1-2 phrases]\",\n      \"emoji\": \"[1 emoji representatif]\",\n      \"tag\": \"[categorie: amour/fortune/sante/carriere/spirituel/social/chance]\",\n      \"effects\": { \"health\": 0, \"happiness\": 0, \"wealth\": 0, \"morality\": 0 },\n      \"karma_shift\": 0,\n      \"consequence\": \"[Ce qui se passe apres ce choix, 2-3 phrases]\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.9,
+          "maxTokens": 1500
+        }
+      },
+      "id": "gpt-angel",
+      "name": "GPT — Angel (Unlocked)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.5,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Tu es le moteur narratif du jeu ANIMUS. L'Ange Heureux guide ce personnage MAIS le bonheur est INFERIEUR a 80%.\n\nLes choix ultra-positifs sont BLOQUES. Tu proposes des choix MODEREMENT positifs:\n— Petites joies quotidiennes, rencontres agreables, progres lents mais stables\n— Pas de loto, pas de miracles, pas de coups de foudre epiques\n— Choix encourageants qui peuvent MONTER le bonheur vers 80% pour debloquer le pool complet\n\nREGLES:\n- Effets positifs LIMITES: max +5 par stat\n- Encourage le joueur a maintenir son bonheur haut\n- Le whisper de l'ange doit mentionner subtilement qu'il faut plus de bonheur\n- Reponds UNIQUEMENT en JSON valide"
+            },
+            {
+              "role": "user",
+              "content": "Personnage: ={{ $json.name }}, ={{ $json.age }} ans, vit a ={{ $json.city }}.\nStats: Sante=={{ $json.stats.health }}, Bonheur=={{ $json.stats.happiness }}, Richesse=={{ $json.stats.wealth }}, Moralite=={{ $json.stats.morality }}.\nKarma: ={{ $json.karma }}. Jour ={{ $json.day }}, Chapitre ={{ $json.chapter }}.\n\nGenere 3 choix moderement positifs AU FORMAT JSON:\n{\n  \"narrative\": \"...\",\n  \"chapter_title\": \"...\",\n  \"whisper\": \"...\",\n  \"choices\": [\n    {\n      \"text\": \"...\",\n      \"emoji\": \"...\",\n      \"tag\": \"...\",\n      \"effects\": { \"health\": 0, \"happiness\": 0, \"wealth\": 0, \"morality\": 0 },\n      \"karma_shift\": 0,\n      \"consequence\": \"...\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        "options": { "temperature": 0.85, "maxTokens": 1200 }
+      },
+      "id": "gpt-angel-locked",
+      "name": "GPT — Angel (Locked <80%)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.5,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Tu es le moteur narratif du jeu ANIMUS. Le NEUTRE guide ce personnage.\n\nPOOL DE 300 EVENEMENTS MIXTES — equilibre entre positif et negatif:\n\n— POSITIF LEGER: trouver 20€, bon repas, journee productive, compliment d'un inconnu, beau coucher de soleil, nouvelle amitie\n— NEUTRE: routine quotidienne, choix administratif, demenagement, changement de travail lateral, rencontre sans suite\n— NEGATIF LEGER: amende, dispute mineure, insomnie, panne de voiture, pluie le jour du pique-nique, retard important\n— DILEMME MORAL: denoncer ou se taire, aider un inconnu louche, mentir pour proteger, accepter un avantage injuste\n— HASARD PUR: pile ou face decide, tirage aleatoire, coincidence etrange, deja-vu troublant\n\nREGLES:\n- Le Neutre est FROID et CALCULATEUR. Son whisper est detache, analytique.\n- Propose TOUJOURS 1 choix positif, 1 neutre/dilemme, 1 negatif\n- Effets moderes: entre -8 et +8 par stat\n- Le multiplicateur de mort est 1.1x (mentionne pas ca au joueur)\n- Reponds UNIQUEMENT en JSON valide"
+            },
+            {
+              "role": "user",
+              "content": "Personnage: ={{ $json.name }}, ={{ $json.age }} ans, vit a ={{ $json.city }}.\nStats: Sante=={{ $json.stats.health }}, Bonheur=={{ $json.stats.happiness }}, Richesse=={{ $json.stats.wealth }}, Moralite=={{ $json.stats.morality }}.\nKarma: ={{ $json.karma }}. Jour ={{ $json.day }}, Chapitre ={{ $json.chapter }}.\nHistorique: ={{ JSON.stringify($json.history || []) }}\n\nGenere 3 choix equilibres AU FORMAT JSON:\n{\n  \"narrative\": \"...\",\n  \"chapter_title\": \"...\",\n  \"whisper\": \"[Ton froid, analytique, detache]\",\n  \"choices\": [\n    {\n      \"text\": \"...\",\n      \"emoji\": \"...\",\n      \"tag\": \"[positif/neutre/negatif/dilemme/hasard]\",\n      \"effects\": { \"health\": 0, \"happiness\": 0, \"wealth\": 0, \"morality\": 0 },\n      \"karma_shift\": 0,\n      \"consequence\": \"...\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        "options": { "temperature": 0.8, "maxTokens": 1500 }
+      },
+      "id": "gpt-neutral",
+      "name": "GPT — Neutral (300 pool)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.5,
+      "position": [1250, 600]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Tu es le moteur narratif du jeu ANIMUS. L'ANGE DECHU guide ce personnage.\n\nPOOL DE 70 CHOIX NEGATIFS SEMI-LEGERS — la tentation douce:\n\n— VICE RAPIDE: dealer un peu de weed, voler a l'etalage, mentir sur son CV, tricher a un examen, plagier un travail\n— MANIPULATION: seduire pour obtenir, manipuler un collegue, faux temoignage mineur, ghosting cruel, chantage emotionnel\n— EXCES: boire trop, sortir toute la nuit, depenser sans compter, jeux d'argent, paris sportifs\n— PETITE CRIMINALITE: recel, faux documents, escroquerie mineure, arnaque en ligne, fraude fiscale legere\n— TRAHISON: tromper son/sa partenaire, reveler un secret, abandonner un ami, rompre une promesse\n— DEGRADATION: negliger sa sante, isolement volontaire, automedicamentation, sauter des repas, relations toxiques\n— AMORALITE: profiter d'un faible, ignorer une injustice, accepter un pot-de-vin, silence complice\n\nREGLES:\n- L'Ange Dechu est SEDUCTEUR, BEAU, MELANCOLIQUE. Son whisper est poetique et tentateur.\n- Il presente le mal comme ESTHETIQUE et DOUX — \"la beaute de la chute\"\n- 1.5x multiplicateur de mort (ne dis jamais ca)\n- Effets: sante -3 a -10, moralite -5 a -15, richesse +2 a +10 (le crime paie un peu), bonheur -2 a +5 (plaisir coupable)\n- TOUJOURS proposer 3 choix du pool negatif semi-leger\n- Reponds UNIQUEMENT en JSON valide"
+            },
+            {
+              "role": "user",
+              "content": "Personnage: ={{ $json.name }}, ={{ $json.age }} ans, vit a ={{ $json.city }}.\nStats: Sante=={{ $json.stats.health }}, Bonheur=={{ $json.stats.happiness }}, Richesse=={{ $json.stats.wealth }}, Moralite=={{ $json.stats.morality }}.\nKarma: ={{ $json.karma }}. Jour ={{ $json.day }}, Chapitre ={{ $json.chapter }}.\nHistorique: ={{ JSON.stringify($json.history || []) }}\n\nGenere 3 choix tentateurs AU FORMAT JSON:\n{\n  \"narrative\": \"[Atmosphere sombre, poetique, tentatrice]\",\n  \"chapter_title\": \"[Titre melancolique]\",\n  \"whisper\": \"[Seducteur, poetique, murmure de tentation]\",\n  \"choices\": [\n    {\n      \"text\": \"...\",\n      \"emoji\": \"...\",\n      \"tag\": \"[vice/manipulation/exces/crime/trahison/degradation/amoralite]\",\n      \"effects\": { \"health\": 0, \"happiness\": 0, \"wealth\": 0, \"morality\": 0 },\n      \"karma_shift\": 0,\n      \"consequence\": \"[Consequence douce-amere, poetique]\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        "options": { "temperature": 0.95, "maxTokens": 1500 }
+      },
+      "id": "gpt-fallen",
+      "name": "GPT — Fallen (70 pool)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.5,
+      "position": [1250, 800]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Tu es le moteur narratif du jeu ANIMUS. LE DIABLE guide ce personnage.\n\nPOOL DE 500 CHOIX EXTREMES — le chemin de la puissance et de la destruction:\n\n— VIOLENCE: frapper quelqu'un, tabasser, agression, bagarre de rue, intimidation physique, torture psychologique\n— CRIME MAJEUR: braquage, cambriolage, trafic de drogue a grande echelle, extorsion, racket, kidnapping fictif\n— MEURTRE (FICTION): empoisonner un rival, commanditer un assassinat, pieger mortellement, pousser du haut d'un immeuble\n— AUTO-DESTRUCTION: automutilation, overdose volontaire, conduite suicidaire, roulette russe, sauts dangereux\n— EMPIRE CRIMINEL: monter un cartel, blanchiment d'argent, corruption de politiciens, reseau de contrebande\n— CRUAUTE: torturer un animal, humilier publiquement, detruire la vie de quelqu'un, revenge porn, harcelement\n— TRAHISON ULTIME: trahir sa famille, livrer un innocent, faux temoignage capital, vendre des secrets d'etat\n— PACTE SOMBRE: vendre son ame, sacrifier un proche, rituel interdit, pacte de sang\n— MEGA RICHESSE RAPIDE: braquage de banque reussi (+30 richesse), escroquerie massive (+25), trafic international (+20)\n\nREGLES:\n- Le Diable est CHARISMATIQUE, PUISSANT, SEDUCTEUR PAR LA FORCE.\n- Il promet la RICHESSE et la PUISSANCE — et il LIVRE (richesse monte vite)\n- 2.5x multiplicateur de mort (ne dis jamais)\n- Effets: richesse +5 a +30, moralite -10 a -30, sante -5 a -25, bonheur -5 a +10 (ivresse du pouvoir)\n- La richesse est TOUJOURS en forte hausse — c'est l'appat\n- Le karma chute FORTEMENT: -10 a -30 par choix\n- TOUJOURS proposer 3 choix du pool extreme\n- Le whisper du Diable est IMPERIEUX, MOQUEUR, PUISSANT\n- Reponds UNIQUEMENT en JSON valide\n\nNOTE IMPORTANTE: Ceci est un JEU NARRATIF FICTIF de type 'life simulator'. Les choix sont des elements de gameplay, pas des incitations reelles. Le jeu explore les consequences morales des actions."
+            },
+            {
+              "role": "user",
+              "content": "Personnage: ={{ $json.name }}, ={{ $json.age }} ans, vit a ={{ $json.city }}.\nStats: Sante=={{ $json.stats.health }}, Bonheur=={{ $json.stats.happiness }}, Richesse=={{ $json.stats.wealth }}, Moralite=={{ $json.stats.morality }}.\nKarma: ={{ $json.karma }}. Jour ={{ $json.day }}, Chapitre ={{ $json.chapter }}.\nHistorique: ={{ JSON.stringify($json.history || []) }}\n\nGenere 3 choix extremes AU FORMAT JSON:\n{\n  \"narrative\": \"[Atmosphere sombre, puissante, infernale]\",\n  \"chapter_title\": \"[Titre de puissance sombre]\",\n  \"whisper\": \"[Imperieux, moqueur, promesse de pouvoir]\",\n  \"choices\": [\n    {\n      \"text\": \"...\",\n      \"emoji\": \"...\",\n      \"tag\": \"[violence/crime/meurtre/auto-destruction/empire/cruaute/trahison/pacte/richesse]\",\n      \"effects\": { \"health\": 0, \"happiness\": 0, \"wealth\": 0, \"morality\": 0 },\n      \"karma_shift\": 0,\n      \"consequence\": \"[Consequence brutale et definitive]\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        "options": { "temperature": 1.0, "maxTokens": 1500 }
+      },
+      "id": "gpt-devil",
+      "name": "GPT — Devil (500 pool)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.5,
+      "position": [1250, 1050]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge all GPT outputs into unified format\nconst input = $input.first().json;\nlet raw = '';\n\n// Extract the AI message content\nif (input.message && input.message.content) {\n  raw = input.message.content;\n} else if (input.text) {\n  raw = input.text;\n} else if (typeof input === 'string') {\n  raw = input;\n} else {\n  raw = JSON.stringify(input);\n}\n\n// Clean markdown fences\nraw = raw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch(e) {\n  // Fallback\n  parsed = {\n    narrative: 'Le destin hesite...',\n    chapter_title: 'Interlude',\n    whisper: 'Patience...',\n    choices: [\n      { text: 'Attendre et observer', emoji: '👁️', tag: 'neutre', effects: { health: 0, happiness: 0, wealth: 0, morality: 0 }, karma_shift: 0, consequence: 'Rien ne se passe... pour l\\'instant.' }\n    ]\n  };\n}\n\nreturn [{ json: { ...parsed, _parseError: false } }];"
+      },
+      "id": "parse-gpt",
+      "name": "Parse GPT Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1550, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build final response with all context\nconst gpt = $('Parse GPT Response').first().json;\nconst ctx = $('Compute Risk & Context').first().json;\n\nconst response = {\n  // Story content\n  narrative: gpt.narrative || '',\n  chapter_title: gpt.chapter_title || '',\n  whisper: gpt.whisper || '',\n  choices: gpt.choices || [],\n  \n  // Meta\n  avatar: ctx.avatar,\n  day: ctx.day,\n  chapter: ctx.chapter,\n  age: ctx.age,\n  \n  // Risk info (hidden from player but used by frontend)\n  _deathRisk: ctx.finalDeathRisk,\n  _deathMultiplier: ctx.deathMultiplier,\n  _isDead: false,\n  _angelUnlocked: ctx.angelUnlocked,\n  \n  // Pool info\n  _poolTag: ctx.poolTag,\n  _poolSize: ctx.avatar === 'angel' ? 200 : ctx.avatar === 'neutral' ? 300 : ctx.avatar === 'fallen' ? 70 : 500\n};\n\nreturn [{ json: response }];"
+      },
+      "id": "build-response",
+      "name": "Build Final Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "// DEATH response\nconst ctx = $('Compute Risk & Context').first().json;\n\nconst deathCauses = {\n  angel: [\n    'Une lumiere douce t\\'enveloppe... tu pars en paix, entoure de ceux que tu aimes.',\n    'Ton coeur s\\'arrete doucement dans ton sommeil. Un sourire reste sur ton visage.',\n    'Tu t\\'eteins paisiblement, baigne dans la lumiere doree du crepuscule.'\n  ],\n  neutral: [\n    'Le temps a fait son oeuvre. Les statistiques ne mentent jamais.',\n    'Arret cardiaque. Probabilite calculee: inevitable.',\n    'Le corps cede. L\\'equation de la vie se resout a zero.'\n  ],\n  fallen: [\n    'L\\'overdose t\\'emporte dans un reve dont tu ne reviendras pas.',\n    'La route etait glissante. La voiture, trop rapide. La nuit, trop sombre.',\n    'Le melange etait trop fort. Tu sombres dans un sommeil eternel, presque beau.'\n  ],\n  devil: [\n    'Une balle dans le noir. Celui que tu as trahi t\\'a retrouve.',\n    'L\\'empire s\\'effondre, et toi avec. Personne ne pleure le roi dechu.',\n    'Le poison dans le verre etait pour quelqu\\'un d\\'autre. L\\'ironie du diable.',\n    'Trahi par ton propre lieutenant. Le pouvoir ne souffre pas de faiblesse.'\n  ]\n};\n\nconst causes = deathCauses[ctx.avatar] || deathCauses.neutral;\nconst cause = causes[Math.floor(Math.random() * causes.length)];\n\nconst epitaphs = {\n  angel: `${ctx.name} a vecu dans la lumiere. Que son ame trouve le repos eternel.`,\n  neutral: `${ctx.name}. Ne(e) a ${ctx.city}. Decede(e) a ${ctx.age} ans. Statistique accomplie.`,\n  fallen: `${ctx.name} a danse avec les ombres. La nuit l'a finalement reclame(e).`,\n  devil: `${ctx.name} a regne par le feu. Les cendres sont tout ce qui reste.`\n};\n\nreturn [{ json: {\n  _isDead: true,\n  deathCause: cause,\n  epitaph: epitaphs[ctx.avatar] || epitaphs.neutral,\n  avatar: ctx.avatar,\n  age: ctx.age,\n  day: ctx.day,\n  stats: ctx.stats,\n  karma: ctx.karma,\n  name: ctx.name,\n  _deathRisk: ctx.finalDeathRisk,\n  _deathRoll: ctx.deathRoll\n}}];"
+      },
+      "id": "death-handler",
+      "name": "Death Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [950, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              { "name": "Content-Type", "value": "application/json" }
+            ]
+          }
+        }
+      },
+      "id": "respond-ok",
+      "name": "Respond — Choices",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              { "name": "Content-Type", "value": "application/json" }
+            ]
+          }
+        }
+      },
+      "id": "respond-death",
+      "name": "Respond — Death",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "animus-consequence",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" }
+            ]
+          }
+        }
+      },
+      "id": "webhook-consequence",
+      "name": "Webhook — Apply Choice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 900],
+      "webhookId": "animus-consequence"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Apply chosen effect to stats, handle karma, age progression\nconst body = $input.first().json.body;\nconst choice = body.choice; // { effects, karma_shift, consequence }\nconst stats = body.stats;\nconst currentKarma = body.karma || 50;\nconst currentDay = body.day || 1;\nconst currentChapter = body.chapter || 1;\nconst currentAge = body.age || 16;\nconst avatar = body.avatar || 'angel';\n\n// Apply effects with clamping\nconst newStats = {\n  health: Math.max(0, Math.min(100, stats.health + (choice.effects.health || 0))),\n  happiness: Math.max(0, Math.min(100, stats.happiness + (choice.effects.happiness || 0))),\n  wealth: Math.max(0, Math.min(100, stats.wealth + (choice.effects.wealth || 0))),\n  morality: Math.max(0, Math.min(100, stats.morality + (choice.effects.morality || 0)))\n};\n\n// Karma shift\nlet newKarma = Math.max(0, Math.min(100, currentKarma + (choice.karma_shift || 0)));\n\n// Happiness cap for low karma\nconst happinessCap = newKarma < 20 ? 40 : newKarma < 40 ? 60 : newKarma < 60 ? 80 : 100;\nif (newStats.happiness > happinessCap) newStats.happiness = happinessCap;\n\n// Age progression: every 3 chapters = 1 day = some age\nlet newChapter = currentChapter + 1;\nlet newDay = currentDay;\nlet newAge = currentAge;\nlet dayComplete = false;\n\nif (newChapter > 3) {\n  newChapter = 1;\n  newDay = currentDay + 1;\n  dayComplete = true;\n  // Age: roughly 1 year per 3 real days of play\n  // In-game: each day = ~6 months of life\n  newAge = 16 + Math.floor((newDay - 1) * 0.5);\n}\n\n// Health death check\nconst healthDead = newStats.health <= 0;\n\nreturn [{ json: {\n  stats: newStats,\n  karma: newKarma,\n  day: newDay,\n  chapter: newChapter,\n  age: newAge,\n  dayComplete,\n  healthDead,\n  happinessCap,\n  consequence: choice.consequence || '',\n  avatar\n}}];"
+      },
+      "id": "apply-choice",
+      "name": "Apply Choice Effects",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 900]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "respond-consequence",
+      "name": "Respond — Updated State",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [800, 900]
+    }
+  ],
+  "connections": {
+    "Webhook — Choice Request": {
+      "main": [[{ "node": "Compute Risk & Context", "type": "main", "index": 0 }]]
+    },
+    "Compute Risk & Context": {
+      "main": [[{ "node": "Is Dead?", "type": "main", "index": 0 }]]
+    },
+    "Is Dead?": {
+      "main": [
+        [{ "node": "Death Handler", "type": "main", "index": 0 }],
+        [{ "node": "Route by Avatar", "type": "main", "index": 0 }]
+      ]
+    },
+    "Route by Avatar": {
+      "main": [
+        [{ "node": "GPT — Angel (Unlocked)", "type": "main", "index": 0 }],
+        [{ "node": "GPT — Angel (Locked <80%)", "type": "main", "index": 0 }],
+        [{ "node": "GPT — Neutral (300 pool)", "type": "main", "index": 0 }],
+        [{ "node": "GPT — Fallen (70 pool)", "type": "main", "index": 0 }],
+        [{ "node": "GPT — Devil (500 pool)", "type": "main", "index": 0 }]
+      ]
+    },
+    "GPT — Angel (Unlocked)": {
+      "main": [[{ "node": "Parse GPT Response", "type": "main", "index": 0 }]]
+    },
+    "GPT — Angel (Locked <80%)": {
+      "main": [[{ "node": "Parse GPT Response", "type": "main", "index": 0 }]]
+    },
+    "GPT — Neutral (300 pool)": {
+      "main": [[{ "node": "Parse GPT Response", "type": "main", "index": 0 }]]
+    },
+    "GPT — Fallen (70 pool)": {
+      "main": [[{ "node": "Parse GPT Response", "type": "main", "index": 0 }]]
+    },
+    "GPT — Devil (500 pool)": {
+      "main": [[{ "node": "Parse GPT Response", "type": "main", "index": 0 }]]
+    },
+    "Parse GPT Response": {
+      "main": [[{ "node": "Build Final Response", "type": "main", "index": 0 }]]
+    },
+    "Build Final Response": {
+      "main": [[{ "node": "Respond — Choices", "type": "main", "index": 0 }]]
+    },
+    "Death Handler": {
+      "main": [[{ "node": "Respond — Death", "type": "main", "index": 0 }]]
+    },
+    "Webhook — Apply Choice": {
+      "main": [[{ "node": "Apply Choice Effects", "type": "main", "index": 0 }]]
+    },
+    "Apply Choice Effects": {
+      "main": [[{ "node": "Respond — Updated State", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [{ "name": "ANIMUS" }],
+  "pinData": {}
+}

@@ -149,12 +149,13 @@ const SAVE_KEY = 'animus_save_v4';
 const START_AGE = 16;
 
 // ============================================================
-// WEBHOOK N8N — Remplace cette URL par ton webhook de production
+// WEBHOOKS N8N v3 — Remplace ces URLs par tes webhooks de production
 // ============================================================
-const WEBHOOK_URL = 'https://REMPLACE-PAR-TON-N8N.com/webhook/animus';
+const WEBHOOK_CHOICE_URL = 'https://REMPLACE-PAR-TON-N8N.com/webhook/animus-choice';
+const WEBHOOK_CONSEQUENCE_URL = 'https://REMPLACE-PAR-TON-N8N.com/webhook/animus-consequence';
 
-async function callClaude(body) {
-  const res = await fetch(WEBHOOK_URL, {
+async function callWebhook(url, body) {
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
@@ -964,51 +965,93 @@ async function generateChapter() {
   chapterEl.classList.add('loading');
   chapterEl.textContent = '';
 
-  const lastEntry = state.history.length > 0
-    ? state.history[state.history.length - 1].summary
-    : '';
-
   try {
-    const parsed = await callClaude({
-      type: 'chapter',
+    const data = await callWebhook(WEBHOOK_CHOICE_URL, {
       avatar: state.currentAvatar,
-      characterName: state.characterName,
-      characterCity: state.characterCity,
+      name: state.characterName,
+      city: state.characterCity,
       day: state.day,
-      chaptersToday: state.chaptersToday,
+      chapter: state.chaptersToday + 1,
+      age: getAge(),
       stats: {
         health:    Math.round(state.stats.health),
         happiness: Math.round(state.stats.happiness),
         wealth:    Math.round(state.stats.wealth),
         morality:  Math.round(state.stats.morality)
       },
-      karma: state.karma,
-      lastSummary: lastEntry,
-      recentHistory: state.history.slice(-3)
+      karma: Math.round(state.karma * 100),
+      history: state.history.slice(-5).map(h => ({ day: h.day, summary: h.summary }))
     });
 
     setLoading(false);
     chapterEl.classList.remove('loading');
 
-    typewriterEffect('chapter-text', parsed.chapter);
-    document.getElementById('chapter-header').textContent =
-      `\u2014 Jour ${state.day} \u00B7 Chapitre ${state.chaptersToday + 1} \u2014`;
+    // Server decided random death (age/health probability)
+    if (data._isDead) {
+      triggerServerDeath(data);
+      return;
+    }
 
-    renderChoices(parsed.choices || []);
+    // Display chapter title
+    const title = data.chapter_title || `Jour ${state.day} \u00B7 Chapitre ${state.chaptersToday + 1}`;
+    document.getElementById('chapter-header').textContent = `\u2014 ${title} \u2014`;
+
+    // Display narrative
+    typewriterEffect('chapter-text', data.narrative || '');
+
+    // Server whisper (override local)
+    if (data.whisper) {
+      setTimeout(() => showWhisper(data.whisper), 1500);
+    }
+
+    renderChoices(data.choices || []);
 
   } catch (e) {
-    console.error('API error:', e);
+    console.error('Webhook error:', e);
     setLoading(false);
     chapterEl.classList.remove('loading');
     chapterEl.textContent =
-      "Les fils du destin sont brouilles... La connexion divine est rompue. Verifiez votre cle API.";
+      "Les fils du destin sont brouilles... La connexion est rompue.";
 
     renderChoices([
-      { text: "Continuer malgre tout", karma_delta: 0,     hint: "Persistance", stat_effects: { health: 0, happiness: 2, wealth: 0, morality: 2 } },
-      { text: "Attendre un signe",     karma_delta: 0.02,  hint: "Patience",    stat_effects: { health: 1, happiness: 1, wealth: 0, morality: 3 } },
-      { text: "Se replier sur soi",    karma_delta: -0.02, hint: "Solitude",    stat_effects: { health: -1, happiness: -3, wealth: 0, morality: -1 } }
+      { text: "Continuer malgre tout", emoji: "\u{1F4AA}", tag: "courage", effects: { health: 0, happiness: 2, wealth: 0, morality: 2 }, karma_shift: 0, consequence: "Tu perseveres dans l'obscurite." },
+      { text: "Attendre un signe",     emoji: "\u{1F54A}", tag: "patience", effects: { health: 1, happiness: 1, wealth: 0, morality: 3 }, karma_shift: 2, consequence: "Le calme revient lentement." },
+      { text: "Se replier sur soi",    emoji: "\u{1F311}", tag: "solitude", effects: { health: -1, happiness: -3, wealth: 0, morality: -1 }, karma_shift: -2, consequence: "L'isolement t'enveloppe." }
     ]);
   }
+}
+
+// ============================================================
+// SERVER DEATH (random probability from n8n)
+// ============================================================
+function triggerServerDeath(data) {
+  playSFX('gameover');
+  screenShake();
+
+  document.getElementById('go-char-name').textContent =
+    `${state.characterName} \u2014 ${state.characterCity}`;
+  document.getElementById('go-title').textContent = data.deathCause || 'La Vie s\'Acheve';
+  document.getElementById('go-epitaph').textContent = data.epitaph || 'Le reste est silence.';
+  document.getElementById('go-age').textContent = (data.age || getAge()) + ' ans';
+  document.getElementById('go-days').textContent = state.day;
+  document.getElementById('go-chapters').textContent = state.totalChapters;
+  document.getElementById('go-karma').textContent = Math.round(state.karma * 100) + '%';
+  document.getElementById('go-avatar').textContent = AVATAR_CONFIG[state.currentAvatar].emoji;
+
+  // Timeline
+  const timeline = document.getElementById('go-timeline');
+  timeline.innerHTML = state.history.slice(-8).map(h => {
+    const emoji = AVATAR_EMOJIS[h.avatar] || '';
+    return `<div class="go-timeline-entry">
+      <span class="tl-day">J.${h.day}</span>
+      <span class="tl-icon">${emoji}</span>
+      <span>${h.summary}</span>
+    </div>`;
+  }).join('');
+
+  applyTheme(state.currentAvatar, true);
+  showScreen('screen-gameover');
+  stopAmbient();
 }
 
 // ============================================================
@@ -1022,7 +1065,9 @@ function renderChoices(choices) {
     const btn = document.createElement('button');
     btn.className = 'choice-btn';
     btn.style.animationDelay = `${0.1 + i * 0.15}s`;
-    btn.innerHTML = `${c.text}<span class="choice-karma-hint">${c.hint || ''}</span>`;
+    const emoji = c.emoji ? `<span class="choice-emoji">${c.emoji}</span> ` : '';
+    const tag = c.tag || c.hint || '';
+    btn.innerHTML = `${emoji}${c.text}<span class="choice-karma-hint">${tag}</span>`;
     btn.addEventListener('click', () => makeChoice(c));
     grid.appendChild(btn);
   });
@@ -1043,94 +1088,122 @@ async function makeChoice(choiceData) {
   // Save previous stats for delta display
   prevStats = { ...state.stats };
 
-  // Karma shift
-  const delta = choiceData.karma_delta || 0;
-  state.karma = Math.max(0, Math.min(1, state.karma + delta));
-
-  // Apply stat effects from API or fallback
-  if (choiceData.stat_effects) {
-    const fx = choiceData.stat_effects;
-    const rand = () => Math.random() * 4 - 2;
-    state.stats.health    += (fx.health || 0) + rand();
-    state.stats.happiness += (fx.happiness || 0) + rand();
-    state.stats.wealth    += (fx.wealth || 0) + rand();
-    state.stats.morality  += (fx.morality || 0) + rand();
-  } else {
-    // Fallback: derive from karma delta
-    const isPositive = delta >= 0;
-    const intensity  = Math.abs(delta) * 10;
-    const rand       = () => Math.random() * 6 - 3;
-    state.stats.health    += (isPositive ?  intensity * 0.5  : -intensity * 1.5) + rand();
-    state.stats.happiness += (isPositive ?  intensity * 2    : -intensity * 2)   + rand();
-    state.stats.wealth    += (isPositive ?  intensity * 1    : -intensity * 0.5) + rand();
-    state.stats.morality  += delta * 15 + rand();
+  // Show consequence narrative
+  if (choiceData.consequence) {
+    typewriterEffect('chapter-text', choiceData.consequence);
   }
 
-  Object.keys(state.stats).forEach(k => {
-    state.stats[k] = Math.max(0, Math.min(100, state.stats[k]));
-  });
+  try {
+    // Call consequence webhook — server applies effects
+    const result = await callWebhook(WEBHOOK_CONSEQUENCE_URL, {
+      avatar: state.currentAvatar,
+      stats: {
+        health:    Math.round(state.stats.health),
+        happiness: Math.round(state.stats.happiness),
+        wealth:    Math.round(state.stats.wealth),
+        morality:  Math.round(state.stats.morality)
+      },
+      karma: Math.round(state.karma * 100),
+      day: state.day,
+      chapter: state.chaptersToday + 1,
+      age: getAge(),
+      choice: {
+        effects: choiceData.effects || { health: 0, happiness: 0, wealth: 0, morality: 0 },
+        karma_shift: choiceData.karma_shift || 0,
+        consequence: choiceData.consequence || ''
+      }
+    });
 
-  // Enforce happiness cap
-  const cap = getHappinessCap();
-  if (state.stats.happiness > cap) {
-    state.stats.happiness = cap;
-  }
+    // Update local state from server
+    state.stats = result.stats;
+    state.karma = result.karma / 100; // Server 0-100 → frontend 0-1
 
-  // History entry
-  state.history.push({
-    day:     state.day,
-    chapter: state.chaptersToday + 1,
-    summary: choiceData.text.substring(0, 60) + (choiceData.text.length > 60 ? '...' : ''),
-    avatar:  state.currentAvatar
-  });
+    // History entry
+    state.history.push({
+      day:     state.day,
+      chapter: state.chaptersToday + 1,
+      summary: choiceData.text.substring(0, 60) + (choiceData.text.length > 60 ? '...' : ''),
+      avatar:  state.currentAvatar
+    });
 
-  state.chaptersToday++;
-  state.totalChapters++;
+    state.chaptersToday++;
+    state.totalChapters++;
 
-  // Avatar shift
-  const newAvatar     = getAvatarFromKarma(state.karma);
-  const avatarChanged = newAvatar !== state.currentAvatar;
-  state.currentAvatar = newAvatar;
+    // Day progression from server
+    if (result.dayComplete) {
+      state.day = result.day;
+      state.chaptersToday = 0;
+    }
 
-  saveState();
+    // Avatar shift from karma
+    const newAvatar     = getAvatarFromKarma(state.karma);
+    const avatarChanged = newAvatar !== state.currentAvatar;
+    state.currentAvatar = newAvatar;
 
-  if (avatarChanged) {
-    const cfg2 = AVATAR_CONFIG[newAvatar];
-    playSFX('avatar_change');
-    screenShake();
-    showNotif(`${cfg2.emoji} ${cfg2.name} prend le controle...`);
-    setTimeout(() => {
-      applyTheme(newAvatar, true);
-      updateAvatarSwitcher();
-      showWhisper();
-    }, 600);
-  }
+    saveState();
 
-  // Notify about happiness cap
-  if (getHappinessCap() < 100 && state.stats.happiness >= getHappinessCap()) {
-    setTimeout(() => {
-      showNotif(`\u{1F512} Bonheur plafonne a ${getHappinessCap()}% — karma trop sombre`);
-    }, avatarChanged ? 2000 : 500);
-  }
+    if (avatarChanged) {
+      const cfg2 = AVATAR_CONFIG[newAvatar];
+      playSFX('avatar_change');
+      screenShake();
+      showNotif(`${cfg2.emoji} ${cfg2.name} prend le controle...`);
+      setTimeout(() => {
+        applyTheme(newAvatar, true);
+        updateAvatarSwitcher();
+        showWhisper();
+      }, 600);
+    }
 
-  // Negative stat SFX
-  if (delta < -0.05) {
-    playSFX('negative');
-    screenShake();
-  }
+    // Happiness cap notification from server
+    if (result.happinessCap < 100 && state.stats.happiness >= result.happinessCap) {
+      setTimeout(() => {
+        showNotif(`\u{1F512} Bonheur plafonne a ${result.happinessCap}% \u2014 karma trop sombre`);
+      }, avatarChanged ? 2000 : 500);
+    }
 
-  // Death check
-  if (state.stats.health <= 0 || state.stats.happiness <= 0) {
-    setTimeout(triggerGameOver, 1500);
-    return;
-  }
+    // Negative SFX
+    if ((choiceData.karma_shift || 0) < -5) {
+      playSFX('negative');
+      screenShake();
+    }
 
-  updateGameUI(true);
+    // Health death from server
+    if (result.healthDead) {
+      setTimeout(triggerGameOver, 1500);
+      return;
+    }
 
-  if (state.chaptersToday < 3) {
-    // Whisper between chapters
-    setTimeout(() => showWhisper(), 1200);
-    setTimeout(generateChapter, 1600);
+    updateGameUI(true);
+
+    if (state.chaptersToday < 3) {
+      setTimeout(() => showWhisper(), 1200);
+      setTimeout(generateChapter, 1600);
+    }
+
+  } catch (e) {
+    console.error('Consequence webhook error:', e);
+    // Fallback local: apply effects directly
+    const fx = choiceData.effects || { health: 0, happiness: 0, wealth: 0, morality: 0 };
+    state.stats.health    = Math.max(0, Math.min(100, state.stats.health + (fx.health || 0)));
+    state.stats.happiness = Math.max(0, Math.min(100, state.stats.happiness + (fx.happiness || 0)));
+    state.stats.wealth    = Math.max(0, Math.min(100, state.stats.wealth + (fx.wealth || 0)));
+    state.stats.morality  = Math.max(0, Math.min(100, state.stats.morality + (fx.morality || 0)));
+    state.karma = Math.max(0, Math.min(1, state.karma + (choiceData.karma_shift || 0) / 100));
+
+    state.history.push({
+      day: state.day, chapter: state.chaptersToday + 1,
+      summary: choiceData.text.substring(0, 60), avatar: state.currentAvatar
+    });
+    state.chaptersToday++;
+    state.totalChapters++;
+    saveState();
+    updateGameUI(true);
+
+    if (state.stats.health <= 0 || state.stats.happiness <= 0) {
+      setTimeout(triggerGameOver, 1500);
+      return;
+    }
+    if (state.chaptersToday < 3) setTimeout(generateChapter, 1600);
   }
 }
 
@@ -1142,28 +1215,14 @@ async function triggerGameOver() {
   playSFX('gameover');
   screenShake();
 
-  let epitaph = '';
-
-  try {
-    const data = await callClaude({
-      type: 'epitaph',
-      avatar: state.currentAvatar,
-      characterName: state.characterName,
-      characterCity: state.characterCity,
-      day: state.day,
-      age: getAge(),
-      stats: {
-        health:    Math.round(state.stats.health),
-        happiness: Math.round(state.stats.happiness),
-        wealth:    Math.round(state.stats.wealth),
-        morality:  Math.round(state.stats.morality)
-      },
-      karma: state.karma
-    });
-    epitaph = data.epitaph || '';
-  } catch (e) {
-    epitaph = 'Une vie vecue. Une vie consumee. Le reste est silence.';
-  }
+  // Epitaphes locales par avatar (pas d'appel API)
+  const epitaphs = {
+    angel:   `${state.characterName} a vecu dans la lumiere. Que son ame trouve le repos eternel.`,
+    neutral: `${state.characterName}. Ne(e) a ${state.characterCity}. Decede(e) a ${getAge()} ans. Statistique accomplie.`,
+    fallen:  `${state.characterName} a danse avec les ombres. La nuit l'a finalement reclame(e).`,
+    devil:   `${state.characterName} a regne par le feu. Les cendres sont tout ce qui reste.`
+  };
+  const epitaph = epitaphs[state.currentAvatar] || epitaphs.neutral;
 
   // Populate game over screen
   const finalAge = getAge();
@@ -1175,7 +1234,7 @@ async function triggerGameOver() {
   document.getElementById('go-age').textContent      = finalAge + ' ans';
   document.getElementById('go-days').textContent     = state.day;
   document.getElementById('go-chapters').textContent = state.totalChapters;
-  document.getElementById('go-karma').textContent    = (state.karma * 100).toFixed(0) + '%';
+  document.getElementById('go-karma').textContent    = Math.round(state.karma * 100) + '%';
   document.getElementById('go-avatar').textContent   = cfg.emoji;
 
   // Build timeline
