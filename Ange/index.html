@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ANIMUS — L'Influence Invisible</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600&family=IM+Fell+English:ital@0;1&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-angel">
+
+<!-- Ambient layers -->
+<canvas id="particles"></canvas>
+<div class="vignette"></div>
+<div class="noise-overlay"></div>
+<div class="scanlines"></div>
+<div class="edge-glow"></div>
+<div class="theme-flash" id="theme-flash"></div>
+
+<!-- Sound toggle -->
+<button class="sound-toggle" id="sound-toggle" onclick="toggleSound()" aria-label="Son">
+  <span class="sound-on">&#9835;</span>
+  <span class="sound-off">&#9854;</span>
+</button>
+
+<!-- ============================================================
+     SCREEN 0 — CINEMATIC INTRO
+     ============================================================ -->
+<div class="screen active" id="screen-cinematic">
+  <div class="cine-container">
+    <div class="cine-symbol" id="cine-symbol"></div>
+    <div class="cine-line cine-line-1">Dans le silence entre les mondes</div>
+    <div class="cine-line cine-line-2">une force attend de s'incarner</div>
+    <div class="cine-line cine-line-3">pour guider une existence mortelle...</div>
+    <div class="cine-title" id="cine-title">ANIMUS</div>
+    <div class="cine-skip" id="cine-skip" onclick="skipCinematic()">Appuyer pour continuer</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN 0.5 — CHARACTER CREATION
+     ============================================================ -->
+<div class="screen" id="screen-character">
+  <div class="char-create">
+    <div class="char-create-symbol"></div>
+    <div class="char-create-title">Qui es-tu ?</div>
+    <div class="char-create-subtitle">Avant de choisir ton guide, dis-nous qui tu es.</div>
+
+    <div class="char-field">
+      <label for="input-name">Ton nom</label>
+      <input type="text" id="input-name" placeholder="Entre ton nom..." maxlength="24" autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="char-field">
+      <label for="input-city">Ta ville</label>
+      <input type="text" id="input-city" placeholder="Ou vis-tu ?" maxlength="30" autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="char-age-display">
+      <span class="char-age-number">16</span>
+      <span class="char-age-unit">ans</span>
+      <span class="char-age-note">Le debut de tout...</span>
+    </div>
+
+    <button class="btn-start visible" id="btn-character" onclick="confirmCharacter()">
+      <span class="btn-text">Choisir mon destin</span>
+      <span class="btn-line"></span>
+    </button>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN 1 — AVATAR SELECTION
+     ============================================================ -->
+<div class="screen" id="screen-intro">
+
+  <div class="intro-header">
+    <div class="intro-title" id="intro-title">ANIMUS</div>
+    <div class="intro-subtitle">L'Influence Invisible</div>
+  </div>
+
+  <p class="intro-desc">
+    Une entite celeste guide les choix d'un humain a travers sa vie.<br>
+    Trois decisions par jour. Une existence entiere a faconner.<br>
+    <em>Qui sera ton ange gardien ?</em>
+  </p>
+
+  <div class="avatar-select-grid" id="avatar-grid">
+
+    <!-- ANGEL -->
+    <div class="avatar-card" data-avatar="angel" onclick="selectAvatar('angel')">
+      <div class="av-video-wrap">
+        <video src="../avatar/angeHeureux.mp4" autoplay loop muted playsinline
+               onerror="this.style.display='none'"></video>
+        <div class="av-placeholder">&#128330;</div>
+      </div>
+      <div class="av-card-bottom">
+        <div class="av-label">L'Ange Heureux</div>
+        <div class="av-influence">Bonheur &middot; Amour &middot; Prosperite</div>
+        <div class="av-desc">Guide vers la lumiere, il murmure des promesses de grace et de redemption.</div>
+      </div>
+      <div class="av-card-glow"></div>
+    </div>
+
+    <!-- NEUTRAL -->
+    <div class="avatar-card" data-avatar="neutral" onclick="selectAvatar('neutral')">
+      <div class="av-video-wrap">
+        <video src="../avatar/angeNeutre.mp4" autoplay loop muted playsinline
+               onerror="this.style.display='none'"></video>
+        <div class="av-placeholder">&#9878;</div>
+      </div>
+      <div class="av-card-bottom">
+        <div class="av-label">Le Neutre</div>
+        <div class="av-influence">Froid &middot; Calcul &middot; Equilibre</div>
+        <div class="av-desc">Ni bien, ni mal. Une equation froide qui observe sans juger.</div>
+      </div>
+      <div class="av-card-glow"></div>
+    </div>
+
+    <!-- FALLEN -->
+    <div class="avatar-card" data-avatar="fallen" onclick="selectAvatar('fallen')">
+      <div class="av-video-wrap">
+        <video src="../avatar/angeDechu.mp4" autoplay loop muted playsinline
+               onerror="this.style.display='none'"></video>
+        <div class="av-placeholder">&#129656;</div>
+      </div>
+      <div class="av-card-bottom">
+        <div class="av-label">L'Ange Dechu</div>
+        <div class="av-influence">Addiction &middot; Chaos &middot; Chute</div>
+        <div class="av-desc">Beau et maudit, il chuchote la douceur de l'oubli et la beaute de la ruine.</div>
+      </div>
+      <div class="av-card-glow"></div>
+    </div>
+
+    <!-- DEVIL -->
+    <div class="avatar-card" data-avatar="devil" onclick="selectAvatar('devil')">
+      <div class="av-video-wrap">
+        <video src="../avatar/diable.mp4" autoplay loop muted playsinline
+               onerror="this.style.display='none'"></video>
+        <div class="av-placeholder">&#128293;</div>
+      </div>
+      <div class="av-card-bottom">
+        <div class="av-label">Le Diable</div>
+        <div class="av-influence">Violence &middot; Crime &middot; Damnation</div>
+        <div class="av-desc">Flamme incarnee, il promet la puissance et ne laisse que des cendres.</div>
+      </div>
+      <div class="av-card-glow"></div>
+    </div>
+
+  </div>
+
+  <button class="btn-start" id="btn-start" onclick="startGame()">
+    <span class="btn-text">Commencer la Vie</span>
+    <span class="btn-line"></span>
+  </button>
+
+</div>
+
+<!-- ============================================================
+     SCREEN 2 — GAME
+     ============================================================ -->
+<div class="screen" id="screen-game">
+
+  <!-- LEFT — Avatar panel -->
+  <div class="panel-avatar" id="panel-avatar">
+    <video id="game-avatar-video" autoplay loop muted playsinline></video>
+    <div class="av-main-placeholder" id="game-avatar-placeholder">&#128330;</div>
+    <div class="avatar-glow-overlay"></div>
+    <div class="avatar-pulse-ring"></div>
+
+    <!-- Avatar whisper -->
+    <div class="avatar-whisper" id="avatar-whisper"></div>
+
+    <div class="avatar-name-tag">
+      <div class="name" id="avatar-display-name">L'Ange Heureux</div>
+      <div class="tagline" id="avatar-display-tag">GUIDE CELESTE</div>
+    </div>
+
+    <!-- Avatar switcher -->
+    <div class="avatar-switcher" id="avatar-switcher">
+      <div class="switch-label">Changer de guide</div>
+      <div class="switch-icons">
+        <button class="switch-btn" data-av="angel" onclick="switchAvatar('angel')" title="L'Ange Heureux">&#128330;</button>
+        <button class="switch-btn" data-av="neutral" onclick="switchAvatar('neutral')" title="Le Neutre">&#9878;</button>
+        <button class="switch-btn" data-av="fallen" onclick="switchAvatar('fallen')" title="L'Ange Dechu">&#129656;</button>
+        <button class="switch-btn" data-av="devil" onclick="switchAvatar('devil')" title="Le Diable">&#128293;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT — Story panel -->
+  <div class="panel-story" id="panel-story">
+
+    <!-- Character identity bar -->
+    <div class="char-identity-bar" id="char-identity-bar">
+      <span class="ci-name" id="ci-name">—</span>
+      <span class="ci-sep">&middot;</span>
+      <span class="ci-age" id="ci-age">16 ans</span>
+      <span class="ci-sep">&middot;</span>
+      <span class="ci-city" id="ci-city">—</span>
+    </div>
+
+    <!-- Top bar: stats + karma -->
+    <div class="top-bar">
+
+      <!-- Character stats -->
+      <div class="char-stats">
+        <div class="stat-row" data-stat="health">
+          <span class="stat-icon">&#9829;</span>
+          <span class="stat-label">Sante</span>
+          <div class="stat-bar-track">
+            <div class="stat-bar-fill" id="stat-health" style="width:80%"></div>
+            <div class="stat-bar-glow" id="stat-health-glow"></div>
+          </div>
+          <span class="stat-value" id="stat-health-val">80</span>
+          <span class="stat-delta" id="stat-health-delta"></span>
+        </div>
+        <div class="stat-row" data-stat="happiness">
+          <span class="stat-icon">&#9733;</span>
+          <span class="stat-label">Bonheur</span>
+          <div class="stat-bar-track">
+            <div class="stat-bar-fill" id="stat-happiness" style="width:75%"></div>
+            <div class="stat-bar-glow" id="stat-happiness-glow"></div>
+            <div class="stat-bar-cap" id="stat-happiness-cap" title="Bonheur bloque par le karma"></div>
+          </div>
+          <span class="stat-value" id="stat-happiness-val">75</span>
+          <span class="stat-delta" id="stat-happiness-delta"></span>
+          <span class="stat-lock" id="stat-happiness-lock" title="Karma trop bas">&#128274;</span>
+        </div>
+        <div class="stat-row" data-stat="wealth">
+          <span class="stat-icon">&#9830;</span>
+          <span class="stat-label">Richesse</span>
+          <div class="stat-bar-track">
+            <div class="stat-bar-fill" id="stat-wealth" style="width:40%"></div>
+            <div class="stat-bar-glow" id="stat-wealth-glow"></div>
+          </div>
+          <span class="stat-value" id="stat-wealth-val">40</span>
+          <span class="stat-delta" id="stat-wealth-delta"></span>
+        </div>
+        <div class="stat-row" data-stat="morality">
+          <span class="stat-icon">&#9775;</span>
+          <span class="stat-label">Moralite</span>
+          <div class="stat-bar-track">
+            <div class="stat-bar-fill" id="stat-morality" style="width:70%"></div>
+            <div class="stat-bar-glow" id="stat-morality-glow"></div>
+          </div>
+          <span class="stat-value" id="stat-morality-val">70</span>
+          <span class="stat-delta" id="stat-morality-delta"></span>
+        </div>
+      </div>
+
+      <!-- Karma slider -->
+      <div class="karma-section">
+        <div class="karma-label">Influence dominante</div>
+        <div class="karma-track">
+          <div class="karma-cursor" id="karma-cursor" style="left:75%">
+            <div class="karma-cursor-ring"></div>
+          </div>
+        </div>
+        <div class="karma-avatars">
+          <span class="karma-avatar-icon" data-k="devil">&#128293;</span>
+          <span class="karma-avatar-icon" data-k="fallen">&#129656;</span>
+          <span class="karma-avatar-icon" data-k="neutral">&#9878;</span>
+          <span class="karma-avatar-icon" data-k="angel">&#128330;</span>
+        </div>
+        <div class="day-counter">
+          Jour <span id="day-display">1</span>
+          &middot; Chapitre <span id="chapter-display">0</span>/3
+        </div>
+      </div>
+
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- Chapter narrative -->
+    <div class="chapter-header" id="chapter-header">&#8212; Prologue &#8212;</div>
+    <div class="chapter-text" id="chapter-text">
+      La lumiere du matin filtre a travers les rideaux.
+      Une nouvelle journee commence, et quelque chose d'invisible s'eveille a tes cotes...
+    </div>
+
+    <!-- Choices -->
+    <div class="choices-header">
+      Choisis ton destin
+      <span class="choices-remaining" id="choices-remaining-label">3 chapitres disponibles</span>
+    </div>
+
+    <div class="choices-grid" id="choices-grid">
+      <button class="choice-btn" disabled>Chargement des choix...</button>
+    </div>
+
+    <!-- Daily limit message -->
+    <div class="daily-limit-msg" id="daily-limit-msg">
+      <div class="limit-icon">&#127769;</div>
+      <h3>La nuit est tombee</h3>
+      <p>Tu as vecu tes 3 chapitres du jour.<br>Reviens demain pour continuer ton destin.</p>
+    </div>
+
+    <!-- History log -->
+    <div class="history-section">
+      <div class="history-title" id="history-toggle" onclick="toggleHistory()">
+        Journal des jours passes
+      </div>
+      <div class="history-log" id="history-log"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ============================================================
+     SCREEN 3 — GAME OVER
+     ============================================================ -->
+<div class="screen" id="screen-gameover">
+
+  <div class="go-particles-burst" id="go-particles-burst"></div>
+
+  <div class="go-content">
+    <div class="go-symbol" id="go-symbol"></div>
+    <div class="go-char-name" id="go-char-name"></div>
+    <div class="gameover-title" id="go-title">La Vie s'Acheve</div>
+    <p class="gameover-epitaph" id="go-epitaph"></p>
+
+    <div class="gameover-stats">
+      <div class="go-stat">
+        <span class="go-val" id="go-age">16</span>
+        <span class="go-label">Age final</span>
+      </div>
+      <div class="go-stat">
+        <span class="go-val" id="go-days">0</span>
+        <span class="go-label">Jours vecus</span>
+      </div>
+      <div class="go-stat">
+        <span class="go-val" id="go-chapters">0</span>
+        <span class="go-label">Chapitres</span>
+      </div>
+      <div class="go-stat">
+        <span class="go-val" id="go-karma">0</span>
+        <span class="go-label">Karma final</span>
+      </div>
+      <div class="go-stat">
+        <span class="go-val" id="go-avatar">&#128330;</span>
+        <span class="go-label">Dernier avatar</span>
+      </div>
+    </div>
+
+    <!-- Final timeline -->
+    <div class="go-timeline" id="go-timeline"></div>
+
+    <button class="btn-restart" onclick="restartGame()">
+      <span class="btn-text">Recommencer</span>
+      <span class="btn-line"></span>
+    </button>
+  </div>
+
+</div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-inner">
+    <div class="loading-ring">
+      <div class="loading-ring-inner"></div>
+    </div>
+    <div class="loading-text" id="loading-text">L'oracle consulte les etoiles...</div>
+    <div class="loading-dots">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div class="notif" id="notif">
+  <div class="notif-bar"></div>
+  <span class="notif-text" id="notif-text"></span>
+</div>
+
+<!-- Game script -->
+<script src="script.js"></script>
+</body>
+</html>
