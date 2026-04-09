@@ -844,7 +844,11 @@ function updateGameUI(showDeltas = false) {
   const fullVideoPath = new URL(cfg.video, window.location.href).href;
   if (vid.src !== fullVideoPath) {
     vid.src = cfg.video;
+    vid.loop = true;
+    vid.muted = true;
+    vid.playsInline = true;
     vid.onerror = () => { vid.style.display = 'none'; };
+    vid.onended = () => { vid.currentTime = 0; vid.play().catch(() => {}); };
     vid.play().catch(() => {});
   }
 
@@ -1315,8 +1319,17 @@ if (state.alive && state.totalChapters > 0 && state.characterName) {
 // Start on cinematic screen
 showScreen('screen-cinematic');
 
-// Handle Enter key + reset border on input
+// Force loop on all avatar card videos + auto-restart
 document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.avatar-card video').forEach(v => {
+    v.loop = true;
+    v.muted = true;
+    v.playsInline = true;
+    v.onended = () => { v.currentTime = 0; v.play().catch(() => {}); };
+    v.onpause = () => { if (!document.hidden) v.play().catch(() => {}); };
+  });
+
+  // Handle Enter key + reset border on input
   ['input-name', 'input-city'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -1328,4 +1341,13 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   });
+});
+
+// Re-play videos when tab becomes visible again
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    document.querySelectorAll('video').forEach(v => {
+      if (v.paused && v.src) v.play().catch(() => {});
+    });
+  }
 });
