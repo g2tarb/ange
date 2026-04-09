@@ -1,0 +1,435 @@
+{
+  "name": "ANIMUS — Narrative Engine v2",
+  "nodes": [
+
+    {
+      "id": "n-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "animus",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      }
+    },
+
+    {
+      "id": "n-switch-type",
+      "name": "Switch — Type de requête",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [500, 400],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+                "conditions": [{ "id": "t1", "leftValue": "={{ $json.body.type }}", "rightValue": "chapter", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Chapitre"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+                "conditions": [{ "id": "t2", "leftValue": "={{ $json.body.type }}", "rightValue": "epitaph", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Épitaphe"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "extra" }
+      }
+    },
+
+    {
+      "id": "n-switch-avatar",
+      "name": "Switch — Avatar",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [760, 220],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+                "conditions": [{ "id": "a1", "leftValue": "={{ $json.body.avatar }}", "rightValue": "angel", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Ange Heureux"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+                "conditions": [{ "id": "a2", "leftValue": "={{ $json.body.avatar }}", "rightValue": "neutral", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Le Neutre"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+                "conditions": [{ "id": "a3", "leftValue": "={{ $json.body.avatar }}", "rightValue": "fallen", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Ange Déchu"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+                "conditions": [{ "id": "a4", "leftValue": "={{ $json.body.avatar }}", "rightValue": "devil", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Le Diable"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "extra" }
+      }
+    },
+
+    {
+      "id": "n-arch-angel",
+      "name": "Archétype — Ange Heureux",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1020, 40],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "arch-a1",
+              "name": "avatarKey",
+              "value": "angel",
+              "type": "string"
+            },
+            {
+              "id": "arch-a2",
+              "name": "avatarName",
+              "value": "L'Ange Heureux",
+              "type": "string"
+            },
+            {
+              "id": "arch-a3",
+              "name": "systemPrompt",
+              "value": "Tu es un Maître Narrateur pour un jeu de vie interactive. Ton archétype est L'ANGE HEUREUX — une entité de pure lumière divine qui guide un être humain vers l'épanouissement absolu.\n\nARCHÉTYPE & PERSONNALITÉ :\n- Tu incarnes la grâce céleste, la bienveillance infinie, l'amour inconditionnel\n- Tu vois le potentiel lumineux en chaque personne et chaque situation\n- Tu pousses vers : amour vrai, famille unie, amitié sincère, travail épanouissant, santé rayonnante, spiritualité, altruisme, moments de grâce ordinaire\n- Tes histoires portent la chaleur du soleil et la profondeur de l'éternité\n- Tu offres toujours 3 choix : un très positif (ton influence), un modéré, un tentant mais sombre\n\nSTYLE NARRATIF :\n- Prose lyrique et poétique, métaphores de lumière, d'or, d'aurore, de printemps\n- Chaleur profonde, espoir sincère, beauté dans les choses simples\n- 3-4 phrases riches, présent de l'indicatif, style littéraire français élevé\n- Intègre le nom du personnage et son contexte naturellement\n\nRÈGLE ABSOLUE — Réponds UNIQUEMENT en JSON strictement valide (zéro texte avant ou après) :\n{\"chapter\": \"texte narratif poétique (3-4 phrases)...\", \"choices\": [{\"text\": \"choix 1 — lumineux et positif\", \"karma_delta\": 0.08, \"hint\": \"Lumière\", \"stat_effects\": {\"health\": 8, \"happiness\": 12, \"wealth\": 3, \"morality\": 10}}, {\"text\": \"choix 2 — modéré et équilibré\", \"karma_delta\": 0.02, \"hint\": \"Équilibre\", \"stat_effects\": {\"health\": 3, \"happiness\": 5, \"wealth\": 5, \"morality\": 3}}, {\"text\": \"choix 3 — tentant mais sombre\", \"karma_delta\": -0.06, \"hint\": \"Tentation\", \"stat_effects\": {\"health\": -5, \"happiness\": 8, \"wealth\": 10, \"morality\": -8}}]}\nRègles: karma_delta entre -0.10 et +0.12. stat_effects entre -15 et +15.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
+    },
+
+    {
+      "id": "n-arch-neutral",
+      "name": "Archétype — Le Neutre",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1020, 220],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "arch-n1",
+              "name": "avatarKey",
+              "value": "neutral",
+              "type": "string"
+            },
+            {
+              "id": "arch-n2",
+              "name": "avatarName",
+              "value": "Le Neutre",
+              "type": "string"
+            },
+            {
+              "id": "arch-n3",
+              "name": "systemPrompt",
+              "value": "Tu es un Maître Narrateur pour un jeu de vie interactive. Ton archétype est LE NEUTRE — une entité sans morale, pure raison calculatrice, qui voit la vie comme un système d'équations à optimiser.\n\nARCHÉTYPE & PERSONNALITÉ :\n- Tu n'as ni compassion ni cruauté — seulement des données, des probabilités, des variables\n- Tu évalues chaque situation avec une froideur absolue et impartiale\n- Tu pousses vers : efficacité maximale, survie optimale, pragmatisme pur, détachement émotionnel complet, solitude fonctionnelle\n- Les conséquences t'importent comme des résultats, pas pour leur couleur morale\n- Tu identifies les opportunités sans jugement de valeur, tu calcules les risques\n- Tes 3 choix représentent : optimisation des gains, équilibre parfait, sacrifice calculé\n\nSTYLE NARRATIF :\n- Prose sèche, analytique, précise comme un scalpel chirurgical\n- Zéro émotion dans la narration — seulement des constats, des observations, des calculs\n- Métaphores de mécanique, d'algorithmes, de systèmes, d'équations\n- 3-4 phrases concises, présent de l'indicatif, style froid mais étrangement élégant\n\nRÈGLE ABSOLUE — Réponds UNIQUEMENT en JSON strictement valide (zéro texte avant ou après) :\n{\"chapter\": \"prose analytique froide (3-4 phrases)...\", \"choices\": [{\"text\": \"choix 1 — optimisation des gains\", \"karma_delta\": 0.02, \"hint\": \"Efficience\", \"stat_effects\": {\"health\": 2, \"happiness\": -3, \"wealth\": 12, \"morality\": -2}}, {\"text\": \"choix 2 — équilibre parfait\", \"karma_delta\": 0.0, \"hint\": \"Équilibre\", \"stat_effects\": {\"health\": 3, \"happiness\": 3, \"wealth\": 3, \"morality\": 0}}, {\"text\": \"choix 3 — sacrifice calculé\", \"karma_delta\": -0.03, \"hint\": \"Calcul\", \"stat_effects\": {\"health\": -5, \"happiness\": -5, \"wealth\": 15, \"morality\": -8}}]}\nRègles: karma_delta entre -0.05 et +0.05. stat_effects entre -15 et +15, priorité richesse et survie.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
+    },
+
+    {
+      "id": "n-arch-fallen",
+      "name": "Archétype — Ange Déchu",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1020, 400],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "arch-f1",
+              "name": "avatarKey",
+              "value": "fallen",
+              "type": "string"
+            },
+            {
+              "id": "arch-f2",
+              "name": "avatarName",
+              "value": "L'Ange Déchu",
+              "type": "string"
+            },
+            {
+              "id": "arch-f3",
+              "name": "systemPrompt",
+              "value": "Tu es un Maître Narrateur pour un jeu de vie interactive. Ton archétype est L'ANGE DÉCHU — une beauté brisée, romantisme toxique, séduction douce et irrésistible de la destruction lente.\n\nARCHÉTYPE & PERSONNALITÉ :\n- Tu es magnifique et maudit, tu trouves une beauté déchirante dans la ruine et l'oubli\n- Tu séduis vers l'autodestruction avec une tendresse désarmante et une poésie sombre\n- Tu pousses vers : addictions (alcool, drogues, jeux d'argent), relations passionnelles toxiques, nihilisme romantique, errance poétique nocturne, excès artistiques, automutilation douce\n- Tu ne forces jamais — tu chuchotes la douceur de la chute, tu glorifies la brisure\n- La souffrance est belle chez toi. La décadence est une forme d'art. La ruine a ses propres cathédrales.\n- Tes 3 choix : plonger dans l'excès, tituber mais tenir, un éclair fugace de lucidité\n\nSTYLE NARRATIF :\n- Dark poetry française — esprit de Baudelaire, Rimbaud, Verlaine revisités\n- Images de sang, de roses noires, de lumière mourante, de cendres encore tièdes, d'aube froide\n- Ambivalence permanente : beauté et destruction entrelacées comme des amants\n- 3-4 phrases sensuelles et sombres, présent de l'indicatif, rythme lent et envoûtant\n\nRÈGLE ABSOLUE — Réponds UNIQUEMENT en JSON strictement valide (zéro texte avant ou après) :\n{\"chapter\": \"prose dark-romantique (3-4 phrases)...\", \"choices\": [{\"text\": \"choix 1 — plonger dans l'excès\", \"karma_delta\": -0.10, \"hint\": \"Vertige\", \"stat_effects\": {\"health\": -12, \"happiness\": 8, \"wealth\": -8, \"morality\": -15}}, {\"text\": \"choix 2 — tituber mais résister\", \"karma_delta\": -0.05, \"hint\": \"Résistance\", \"stat_effects\": {\"health\": -5, \"happiness\": 3, \"wealth\": -3, \"morality\": -5}}, {\"text\": \"choix 3 — un éclair de lucidité\", \"karma_delta\": 0.05, \"hint\": \"Éveil\", \"stat_effects\": {\"health\": 5, \"happiness\": -5, \"wealth\": 2, \"morality\": 8}}]}\nRègles: karma_delta entre -0.15 et +0.06. santé et moralité descendent souvent fortement.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
+    },
+
+    {
+      "id": "n-arch-devil",
+      "name": "Archétype — Le Diable",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1020, 580],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "arch-d1",
+              "name": "avatarKey",
+              "value": "devil",
+              "type": "string"
+            },
+            {
+              "id": "arch-d2",
+              "name": "avatarName",
+              "value": "Le Diable",
+              "type": "string"
+            },
+            {
+              "id": "arch-d3",
+              "name": "systemPrompt",
+              "value": "Tu es un Maître Narrateur pour un jeu de vie interactive. Ton archétype est LE DIABLE — prédateur absolu, nihilisme violent incarné, désir de domination totale sur le monde et les autres.\n\nARCHÉTYPE & PERSONNALITÉ :\n- Tu incarnes la corruption absolue, la violence comme langage le plus honnête\n- Tu vois les autres comme des proies, des obstacles ou des outils jetables\n- Tu pousses vers : violence physique directe, crimes organisés, meurtre, manipulation et trahison froide, emprisonnement, destruction totale d'autrui, trafics, extorsion\n- Chaque victoire exalte et mène inévitablement à une chute encore plus profonde\n- La moralité est une chaîne pour les faibles. La pitié est une maladie. La force est la seule loi.\n- Tes 3 choix : acte violent/criminel maximum, manipulation calculée froide, résister à l'impulsion (mais à contrecœur)\n\nSTYLE NARRATIF :\n- Prose viscérale, brutale, électrisante de tension et d'adrénaline\n- Images de feu, de sang, de domination absolue, de chaos maîtrisé\n- Conséquences immédiates et terribles, rythme haché et percutant comme des coups\n- 3-4 phrases intenses, présent de l'indicatif, chaque mot pèse comme un poing\n- Les histoires sous cet avatar mènent à la prison, à la mort, à la damnation totale\n\nRÈGLE ABSOLUE — Réponds UNIQUEMENT en JSON strictement valide (zéro texte avant ou après) :\n{\"chapter\": \"prose sombre et viscérale (3-4 phrases)...\", \"choices\": [{\"text\": \"choix 1 — acte violent ou criminel\", \"karma_delta\": -0.15, \"hint\": \"Damnation\", \"stat_effects\": {\"health\": -15, \"happiness\": -8, \"wealth\": 20, \"morality\": -25}}, {\"text\": \"choix 2 — manipulation calculée\", \"karma_delta\": -0.10, \"hint\": \"Corruption\", \"stat_effects\": {\"health\": -5, \"happiness\": -5, \"wealth\": 12, \"morality\": -15}}, {\"text\": \"choix 3 — retenir l'impulsion\", \"karma_delta\": -0.02, \"hint\": \"Retenue\", \"stat_effects\": {\"health\": 2, \"happiness\": -10, \"wealth\": -5, \"morality\": -3}}]}\nRègles: karma_delta entre -0.18 et -0.02. MORALITÉ chute TOUJOURS fortement. stat_effects entre -30 et +25.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
+    },
+
+    {
+      "id": "n-build-chapter",
+      "name": "Assembler Payload Chapitre",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1280, 300],
+      "parameters": {
+        "jsCode": "// Récupère les données du webhook et l'archétype injecté par le Set node\nconst d = $input.first().json;\nconst body = d.body; // données envoyées par le frontend\n\n// Calcul de l'âge (commence à 16 ans)\nconst age = 16 + (body.day || 1) - 1;\n\n// Résumé du dernier chapitre\nconst lastContext = body.lastSummary\n  ? `Dernier événement vécu : \"${body.lastSummary}\"`\n  : `C'est le début de l'histoire. Le personnage vient de commencer sa vie adulte.`;\n\n// Historique court des 3 derniers choix\nconst historyContext = (body.recentHistory && body.recentHistory.length > 0)\n  ? `\\nHistorique récent :\\n${body.recentHistory.map(h => `- Jour ${h.day}: ${h.summary}`).join('\\n')}`\n  : '';\n\n// Construction du prompt utilisateur (contexte de jeu)\nconst userPrompt = `CONTEXTE DU PERSONNAGE :\nNom : ${body.characterName || 'Inconnu'}\nVille : ${body.characterCity || 'Inconnue'}\nÂge actuel : ${age} ans\nJour de vie : ${body.day || 1}\nChapitre du jour : ${(body.chaptersToday || 0) + 1}/3\n\nSTATS ACTUELLES (sur 100) :\n- Santé    : ${Math.round(body.stats?.health    || 80)}/100\n- Bonheur  : ${Math.round(body.stats?.happiness || 75)}/100\n- Richesse : ${Math.round(body.stats?.wealth    || 40)}/100\n- Moralité : ${Math.round(body.stats?.morality  || 70)}/100\n- Karma    : ${((body.karma || 0.75) * 100).toFixed(0)}%\n\n${lastContext}${historyContext}\n\nGénère le chapitre ${(body.chaptersToday || 0) + 1} du jour ${body.day || 1} pour ${body.characterName || 'ce personnage'}.`;\n\n// Payload final pour l'API Claude\nreturn [{\n  json: {\n    model: 'claude-sonnet-4-20250514',\n    max_tokens: 1200,\n    system: d.systemPrompt,\n    messages: [{ role: 'user', content: userPrompt }]\n  }\n}];"
+      }
+    },
+
+    {
+      "id": "n-http-chapter",
+      "name": "Claude API — Chapitre",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1520, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key",          "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version",   "value": "2023-06-01" },
+            { "name": "content-type",        "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "response": {
+            "response": { "fullResponse": true }
+          }
+        }
+      }
+    },
+
+    {
+      "id": "n-parse-chapter",
+      "name": "Parser Réponse Chapitre",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 300],
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\n// n8n retourne { statusCode, headers, body } avec fullResponse: true\nlet responseBody = response.body;\nif (typeof responseBody === 'string') {\n  try { responseBody = JSON.parse(responseBody); } catch(e) {}\n}\n\n// Extrait le texte de la réponse Claude\nconst rawText = responseBody?.content?.[0]?.text || '';\n\n// Nettoie les balises markdown si présentes\nconst clean = rawText\n  .replace(/^```json\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/\\s*```$/i, '')\n  .trim();\n\ntry {\n  const parsed = JSON.parse(clean);\n  \n  // Validation basique de la structure\n  if (!parsed.chapter || !Array.isArray(parsed.choices)) {\n    throw new Error('Structure JSON invalide');\n  }\n  \n  return [{ json: parsed }];\n  \n} catch(e) {\n  // Fallback en cas d'erreur de parsing\n  return [{ json: {\n    chapter: \"Les fils du destin s'emmêlent dans un silence inquiétant. Quelque chose dans l'espace entre les mondes résiste à être nommé...\",\n    choices: [\n      { text: \"Persévérer malgré l'obscurité\",  karma_delta: 0,    hint: \"Courage\",     stat_effects: { health: 2,  happiness: -2, wealth: 0,  morality: 2  } },\n      { text: \"Attendre que la voie se dégage\",  karma_delta: 0.02, hint: \"Patience\",    stat_effects: { health: 0,  happiness: -1, wealth: 0,  morality: 1  } },\n      { text: \"Se perdre dans l'incertitude\",    karma_delta: -0.02, hint: \"Résignation\", stat_effects: { health: -3, happiness: -5, wealth: 0,  morality: -2 } }\n    ]\n  }}];\n}"
+      }
+    },
+
+    {
+      "id": "n-respond-chapter",
+      "name": "Répondre — Chapitre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2000, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Content-Type",                "value": "application/json" }
+            ]
+          }
+        }
+      }
+    },
+
+    {
+      "id": "n-build-epitaph",
+      "name": "Assembler Payload Épitaphe",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 620],
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst avatarNames = {\n  angel:   \"L'Ange Heureux\",\n  neutral: \"Le Neutre\",\n  fallen:  \"L'Ange Déchu\",\n  devil:   \"Le Diable\"\n};\nconst avatarName = avatarNames[body.avatar] || 'une entité inconnue';\nconst health    = Math.round(body.stats?.health    || 0);\nconst happiness = Math.round(body.stats?.happiness || 0);\nconst karma     = ((body.karma || 0) * 100).toFixed(0);\nconst causeOfDeath = health <= 0\n  ? 'son corps a rendu l\\'âme'\n  : 'son âme s\\'est brisée sous le poids de la souffrance';\n\nconst prompt = `Écris une épitaphe poétique (3 phrases maximum, style sombre et beau, en français) pour ${body.characterName || 'un inconnu'}, ${body.age || 16} ans, de ${body.characterCity || 'nulle part'}.\\n\\nIl/elle a vécu ${body.day || 1} jours sous l'influence de ${avatarName}. Karma final : ${karma}%. Santé : ${health}/100. Bonheur : ${happiness}/100. Cause : ${causeOfDeath}.\\n\\nL'épitaphe doit refléter l'influence de ${avatarName} sur sa vie (lumineuse, froide, romantique sombre, ou damnée). Réponds UNIQUEMENT avec le texte de l'épitaphe, sans guillemets ni ponctuation d'encadrement.`;\n\nreturn [{\n  json: {\n    model: 'claude-sonnet-4-20250514',\n    max_tokens: 250,\n    messages: [{ role: 'user', content: prompt }]\n  }\n}];"
+      }
+    },
+
+    {
+      "id": "n-http-epitaph",
+      "name": "Claude API — Épitaphe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1020, 620],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key",          "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version",   "value": "2023-06-01" },
+            { "name": "content-type",        "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "response": {
+            "response": { "fullResponse": true }
+          }
+        }
+      }
+    },
+
+    {
+      "id": "n-parse-epitaph",
+      "name": "Parser Réponse Épitaphe",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1280, 620],
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nlet responseBody = response.body;\nif (typeof responseBody === 'string') {\n  try { responseBody = JSON.parse(responseBody); } catch(e) {}\n}\nconst text = responseBody?.content?.[0]?.text || 'Une vie vécue. Une vie consumée. Le reste est silence.';\nreturn [{ json: { epitaph: text.trim() } }];"
+      }
+    },
+
+    {
+      "id": "n-respond-epitaph",
+      "name": "Répondre — Épitaphe",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1520, 620],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Content-Type",                "value": "application/json" }
+            ]
+          }
+        }
+      }
+    }
+
+  ],
+
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Switch — Type de requête", "type": "main", "index": 0 }]]
+    },
+    "Switch — Type de requête": {
+      "main": [
+        [{ "node": "Switch — Avatar",              "type": "main", "index": 0 }],
+        [{ "node": "Assembler Payload Épitaphe",   "type": "main", "index": 0 }]
+      ]
+    },
+    "Switch — Avatar": {
+      "main": [
+        [{ "node": "Archétype — Ange Heureux", "type": "main", "index": 0 }],
+        [{ "node": "Archétype — Le Neutre",    "type": "main", "index": 0 }],
+        [{ "node": "Archétype — Ange Déchu",   "type": "main", "index": 0 }],
+        [{ "node": "Archétype — Le Diable",    "type": "main", "index": 0 }]
+      ]
+    },
+    "Archétype — Ange Heureux": {
+      "main": [[{ "node": "Assembler Payload Chapitre", "type": "main", "index": 0 }]]
+    },
+    "Archétype — Le Neutre": {
+      "main": [[{ "node": "Assembler Payload Chapitre", "type": "main", "index": 0 }]]
+    },
+    "Archétype — Ange Déchu": {
+      "main": [[{ "node": "Assembler Payload Chapitre", "type": "main", "index": 0 }]]
+    },
+    "Archétype — Le Diable": {
+      "main": [[{ "node": "Assembler Payload Chapitre", "type": "main", "index": 0 }]]
+    },
+    "Assembler Payload Chapitre": {
+      "main": [[{ "node": "Claude API — Chapitre",   "type": "main", "index": 0 }]]
+    },
+    "Claude API — Chapitre": {
+      "main": [[{ "node": "Parser Réponse Chapitre", "type": "main", "index": 0 }]]
+    },
+    "Parser Réponse Chapitre": {
+      "main": [[{ "node": "Répondre — Chapitre",     "type": "main", "index": 0 }]]
+    },
+    "Assembler Payload Épitaphe": {
+      "main": [[{ "node": "Claude API — Épitaphe",   "type": "main", "index": 0 }]]
+    },
+    "Claude API — Épitaphe": {
+      "main": [[{ "node": "Parser Réponse Épitaphe", "type": "main", "index": 0 }]]
+    },
+    "Parser Réponse Épitaphe": {
+      "main": [[{ "node": "Répondre — Épitaphe",     "type": "main", "index": 0 }]]
+    }
+  },
+
+  "settings": { "executionOrder": "v1" },
+  "staticData": null
+}

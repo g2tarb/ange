@@ -964,38 +964,28 @@ async function generateChapter() {
   chapterEl.classList.add('loading');
   chapterEl.textContent = '';
 
-  const lastSummaries = state.history.slice(-3).map(h =>
-    `J.${h.day}: ${h.summary} (avatar: ${h.avatar})`
-  ).join('\n');
-
-  const age = getAge();
-  const contextPrompt = `
-Personnage: ${state.characterName}, ${age} ans, vit a ${state.characterCity}.
-Stats actuelles:
-- Sante:    ${Math.round(state.stats.health)}/100
-- Bonheur:  ${Math.round(state.stats.happiness)}/100 ${getHappinessCap() < 100 ? '(PLAFONNE a ' + getHappinessCap() + '% a cause du karma)' : ''}
-- Richesse: ${Math.round(state.stats.wealth)}/100
-- Moralite: ${Math.round(state.stats.morality)}/100
-- Karma:    ${(state.karma * 100).toFixed(0)}% (0=diable, 100=ange)
-- Jour de vie: ${state.day} (age: ${age} ans)
-- Chapitre du jour: ${state.chaptersToday + 1}/3
-${lastSummaries ? '\nDerniers choix:\n' + lastSummaries : ''}
-
-Genere le chapitre ${state.chaptersToday + 1} du jour ${state.day}. Le personnage s'appelle ${state.characterName} et a ${age} ans. Adapte le recit a son age et sa ville (${state.characterCity}).
-IMPORTANT: Les stat_effects doivent etre coherents avec le choix. Varie les consequences.
-`;
+  const lastEntry = state.history.length > 0
+    ? state.history[state.history.length - 1].summary
+    : '';
 
   try {
-    const data = await callClaude({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1200,
-      system: cfg.systemPrompt,
-      messages: [{ role: 'user', content: contextPrompt }]
+    const parsed = await callClaude({
+      type: 'chapter',
+      avatar: state.currentAvatar,
+      characterName: state.characterName,
+      characterCity: state.characterCity,
+      day: state.day,
+      chaptersToday: state.chaptersToday,
+      stats: {
+        health:    Math.round(state.stats.health),
+        happiness: Math.round(state.stats.happiness),
+        wealth:    Math.round(state.stats.wealth),
+        morality:  Math.round(state.stats.morality)
+      },
+      karma: state.karma,
+      lastSummary: lastEntry,
+      recentHistory: state.history.slice(-3)
     });
-
-    const raw   = data.content?.[0]?.text || '';
-    const clean = raw.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
 
     setLoading(false);
     chapterEl.classList.remove('loading');
@@ -1156,14 +1146,21 @@ async function triggerGameOver() {
 
   try {
     const data = await callClaude({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 200,
-      messages: [{
-        role: 'user',
-        content: `Ecris une epitaphe poetique courte (2-3 phrases en francais, style sombre et beau) pour ${state.characterName}, ${getAge()} ans, de ${state.characterCity}, qui a vecu ${state.day} jours sous l'influence de ${cfg.name}. Sante finale: ${Math.round(state.stats.health)}. Karma: ${(state.karma * 100).toFixed(0)}%. Reponds uniquement avec le texte de l'epitaphe.`
-      }]
+      type: 'epitaph',
+      avatar: state.currentAvatar,
+      characterName: state.characterName,
+      characterCity: state.characterCity,
+      day: state.day,
+      age: getAge(),
+      stats: {
+        health:    Math.round(state.stats.health),
+        happiness: Math.round(state.stats.happiness),
+        wealth:    Math.round(state.stats.wealth),
+        morality:  Math.round(state.stats.morality)
+      },
+      karma: state.karma
     });
-    epitaph = data.content?.[0]?.text || '';
+    epitaph = data.epitaph || '';
   } catch (e) {
     epitaph = 'Une vie vecue. Une vie consumee. Le reste est silence.';
   }
