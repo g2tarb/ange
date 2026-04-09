@@ -151,8 +151,8 @@ const START_AGE = 16;
 // ============================================================
 // WEBHOOKS N8N v3 — Remplace ces URLs par tes webhooks de production
 // ============================================================
-const WEBHOOK_CHOICE_URL = 'https://REMPLACE-PAR-TON-N8N.com/webhook/animus-choice';
-const WEBHOOK_CONSEQUENCE_URL = 'https://REMPLACE-PAR-TON-N8N.com/webhook/animus-consequence';
+const WEBHOOK_CHOICE_URL = 'https://n8n.srv1263084.hstgr.cloud/webhook/animus-choice';
+const WEBHOOK_CONSEQUENCE_URL = 'https://n8n.srv1263084.hstgr.cloud/webhook/animus-consequence';
 
 async function callWebhook(url, body) {
   const res = await fetch(url, {
