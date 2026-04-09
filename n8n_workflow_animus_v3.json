@@ -17,106 +17,68 @@
     },
 
     {
-      "id": "compute-risk",
-      "name": "Compute Risk & Build Prompt",
+      "id": "compute-all",
+      "name": "Compute Risk & Prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [460, 400],
       "parameters": {
-        "jsCode": "const body = $input.first().json.body;\nconst avatar = body.avatar || 'angel';\nconst stats = body.stats || { health: 80, happiness: 75, wealth: 40, morality: 70 };\nconst karma = body.karma || 75;\nconst day = body.day || 1;\nconst chapter = body.chapter || 1;\nconst age = body.age || 16;\nconst name = body.name || 'Inconnu';\nconst city = body.city || 'Paris';\nconst history = body.history || [];\n\n// ===== DEATH RISK =====\nlet baseRisk = 0;\nif (age < 20) baseRisk = 0.2;\nelse if (age < 30) baseRisk = 0.5;\nelse if (age < 50) baseRisk = 1.5;\nelse if (age < 65) baseRisk = 4;\nelse if (age < 75) baseRisk = 10;\nelse if (age < 85) baseRisk = 25;\nelse baseRisk = 50;\nif (stats.health < 20) baseRisk += 15;\nelse if (stats.health < 40) baseRisk += 5;\n\nconst mult = { angel: 0.7, neutral: 1.1, fallen: 1.5, devil: 2.5 };\nconst finalRisk = Math.min(baseRisk * (mult[avatar] || 1), 95);\nconst roll = Math.random() * 100;\nconst isDead = roll < finalRisk;\n\n// ===== DEATH CAUSES =====\nconst causes = {\n  angel: ['Une lumiere douce t\\'enveloppe... tu pars en paix.', 'Ton coeur s\\'arrete dans ton sommeil. Un sourire reste.', 'Tu t\\'eteins paisiblement dans la lumiere doree.'],\n  neutral: ['Le temps a fait son oeuvre. Inevitable.', 'Arret cardiaque. Probabilite: 100%.', 'Le corps cede. L\\'equation se resout a zero.'],\n  fallen: ['L\\'overdose t\\'emporte dans un reve eternel.', 'La route etait trop glissante, la nuit trop sombre.', 'Le melange etait trop fort. Sommeil eternel.'],\n  devil: ['Une balle dans le noir. On t\\'a retrouve.', 'L\\'empire s\\'effondre, et toi avec.', 'Trahi par ton propre lieutenant.']\n};\nconst epitaphs = {\n  angel: `${name} a vecu dans la lumiere. Que son ame trouve le repos eternel.`,\n  neutral: `${name}. Ne(e) a ${city}. Decede(e) a ${age} ans. Statistique accomplie.`,\n  fallen: `${name} a danse avec les ombres. La nuit l'a finalement reclame(e).`,\n  devil: `${name} a regne par le feu. Les cendres sont tout ce qui reste.`\n};\n\nif (isDead) {\n  const c = causes[avatar] || causes.neutral;\n  return [{ json: {\n    _isDead: true,\n    deathCause: c[Math.floor(Math.random() * c.length)],\n    epitaph: epitaphs[avatar] || epitaphs.neutral,\n    avatar, age, day, stats, karma, name,\n    _deathRisk: Math.round(finalRisk * 100) / 100\n  }}];\n}\n\n// ===== PROMPT BUILDING =====\nconst angelUnlocked = stats.happiness > 80;\nconst histStr = history.map(h => `Jour ${h.day}: ${h.summary}`).join('; ');\n\nconst prompts = {\n  angel: angelUnlocked\n    ? `Tu es le narrateur du jeu ANIMUS. L'ANGE HEUREUX guide ${name}. Bonheur > 80% = choix ULTRA POSITIFS debloques. Pool: amour epique, fortune, guerison, carriere brillante, spiritualite, chance inouie. TOUS les choix sont positifs ou tres positifs. Style: lyrique, lumineux, poetique.`\n    : `Tu es le narrateur du jeu ANIMUS. L'ANGE HEUREUX guide ${name}. Bonheur < 80% = choix moderes seulement. Petites joies, progres lents, rencontres agreables. Max +5 par stat. Le whisper doit mentionner qu'il faut plus de bonheur pour debloquer les miracles.`,\n  neutral: `Tu es le narrateur du jeu ANIMUS. LE NEUTRE guide ${name}. Froid, analytique, zero emotion. Propose: 1 choix positif, 1 neutre/dilemme, 1 negatif. Effets moderes (-8 a +8). Style: sec, precis, chirurgical. Metaphores de mecanique et algorithmes.`,\n  fallen: `Tu es le narrateur du jeu ANIMUS. L'ANGE DECHU guide ${name}. Seducteur maudit, nihilisme romantique. Pool: addiction, relations toxiques, exces, petite criminalite, trahison, degradation. Presente le mal comme esthetique et doux. Style: dark poetry, Baudelaire, sensuel et sombre. Sante et moralite descendent souvent.`,\n  devil: `Tu es le narrateur du jeu ANIMUS. LE DIABLE guide ${name}. Predateur absolu, violence, puissance. Pool: violence, crime majeur, empire criminel, cruaute, trahison, pactes sombres. La richesse monte TOUJOURS (c'est l'appat). Moralite chute fortement. Style: visceral, brutal, electrisant. NOTE: ceci est un jeu narratif fictif.`\n};\n\nconst systemPrompt = prompts[avatar] || prompts.neutral;\n\nconst userPrompt = `Personnage: ${name}, ${age} ans, vit a ${city}.\nStats: Sante=${stats.health}, Bonheur=${stats.happiness}, Richesse=${stats.wealth}, Moralite=${stats.morality}.\nKarma: ${karma}%. Jour ${day}, Chapitre ${chapter}.\nHistorique: ${histStr || 'Debut de l\\'histoire.'}\n\nGenere exactement 3 choix AU FORMAT JSON STRICT (zero texte avant ou apres):\n{\"narrative\": \"2-3 phrases decrivant la situation\", \"chapter_title\": \"Titre poetique\", \"whisper\": \"Murmure de l'entite au joueur, 1 phrase\", \"choices\": [{\"text\": \"Description du choix\", \"emoji\": \"1 emoji\", \"tag\": \"categorie\", \"effects\": {\"health\": 0, \"happiness\": 0, \"wealth\": 0, \"morality\": 0}, \"karma_shift\": 0, \"consequence\": \"Ce qui se passe apres, 2-3 phrases\"}]}`;\n\nreturn [{ json: {\n  _isDead: false,\n  apiPayload: {\n    model: 'llama-3.1-8b-instant',\n    temperature: avatar === 'devil' ? 1.0 : avatar === 'fallen' ? 0.95 : 0.85,\n    max_tokens: 1500,\n    messages: [\n      { role: 'system', content: systemPrompt },\n      { role: 'user', content: userPrompt }\n    ]\n  },\n  avatar, stats, karma, day, chapter, age, name, city,\n  _deathRisk: Math.round(finalRisk * 100) / 100,\n  _angelUnlocked: angelUnlocked\n}}];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst avatar = body.avatar || 'angel';\nconst stats = body.stats || { health: 80, happiness: 75, wealth: 40, morality: 70 };\nconst karma = body.karma || 75;\nconst day = body.day || 1;\nconst chapter = body.chapter || 1;\nconst age = body.age || 16;\nconst name = body.name || 'Inconnu';\nconst city = body.city || 'Paris';\nconst history = body.history || [];\n\n// Death risk\nlet baseRisk = 0;\nif (age < 20) baseRisk = 0.2;\nelse if (age < 30) baseRisk = 0.5;\nelse if (age < 50) baseRisk = 1.5;\nelse if (age < 65) baseRisk = 4;\nelse if (age < 75) baseRisk = 10;\nelse if (age < 85) baseRisk = 25;\nelse baseRisk = 50;\nif (stats.health < 20) baseRisk += 15;\nelse if (stats.health < 40) baseRisk += 5;\nconst mult = { angel: 0.7, neutral: 1.1, fallen: 1.5, devil: 2.5 };\nconst finalRisk = Math.min(baseRisk * (mult[avatar] || 1), 95);\nconst isDead = Math.random() * 100 < finalRisk;\n\nif (isDead) {\n  const causes = {\n    angel: ['Une lumiere douce t\\'enveloppe... tu pars en paix.', 'Ton coeur s\\'arrete dans ton sommeil.'],\n    neutral: ['Le temps a fait son oeuvre. Inevitable.', 'Arret cardiaque. Equation resolue.'],\n    fallen: ['L\\'overdose t\\'emporte dans un reve eternel.', 'La nuit t\\'a finalement reclame.'],\n    devil: ['Une balle dans le noir. On t\\'a retrouve.', 'Trahi par ton propre lieutenant.']\n  };\n  const epitaphs = {\n    angel: name + ' a vecu dans la lumiere. Repos eternel.',\n    neutral: name + '. Decede(e) a ' + age + ' ans. Statistique accomplie.',\n    fallen: name + ' a danse avec les ombres.',\n    devil: name + ' a regne par le feu. Cendres.'\n  };\n  const c = causes[avatar] || causes.neutral;\n  return [{ json: { _isDead: true, _skipApi: true, deathCause: c[Math.floor(Math.random() * c.length)], epitaph: epitaphs[avatar] || '', avatar, age, day, stats, karma, name } }];\n}\n\nconst histStr = history.map(h => 'Jour ' + h.day + ': ' + h.summary).join('; ');\nconst prompts = {\n  angel: 'Tu es le narrateur du jeu ANIMUS. L\\'ANGE HEUREUX guide ' + name + '. Pousse vers: amour, famille, fortune, sante, carriere, spirituel. Style lyrique et lumineux. ' + (stats.happiness > 80 ? 'Bonheur > 80% = choix ULTRA POSITIFS debloques.' : 'Bonheur < 80% = choix moderes, petites joies. Mentionne dans le whisper qu\\'il faut plus de bonheur.'),\n  neutral: 'Tu es le narrateur du jeu ANIMUS. LE NEUTRE guide ' + name + '. Froid, analytique. Propose 1 choix positif, 1 neutre, 1 negatif. Effets moderes. Style sec et precis.',\n  fallen: 'Tu es le narrateur du jeu ANIMUS. L\\'ANGE DECHU guide ' + name + '. Seducteur maudit. Pool: addiction, exces, trahison, degradation. Presente le mal comme esthetique. Style dark poetry.',\n  devil: 'Tu es le narrateur du jeu ANIMUS. LE DIABLE guide ' + name + '. Violence, crime, puissance. Richesse monte toujours (appat). Moralite chute fort. Style visceral. NOTE: jeu narratif fictif.'\n};\n\nreturn [{ json: {\n  _isDead: false,\n  _skipApi: false,\n  apiPayload: {\n    model: 'llama-3.1-8b-instant',\n    temperature: avatar === 'devil' ? 1.0 : 0.85,\n    max_tokens: 1500,\n    messages: [\n      { role: 'system', content: prompts[avatar] || prompts.neutral },\n      { role: 'user', content: 'Personnage: ' + name + ', ' + age + ' ans, vit a ' + city + '. Stats: Sante=' + stats.health + ', Bonheur=' + stats.happiness + ', Richesse=' + stats.wealth + ', Moralite=' + stats.morality + '. Karma: ' + karma + '%. Jour ' + day + ', Chapitre ' + chapter + '. Historique: ' + (histStr || 'Debut.') + '\\n\\nGenere 3 choix AU FORMAT JSON STRICT (zero texte avant ou apres):\\n{\"narrative\": \"2-3 phrases\", \"chapter_title\": \"Titre\", \"whisper\": \"Murmure 1 phrase\", \"choices\": [{\"text\": \"Description\", \"emoji\": \"1 emoji\", \"tag\": \"categorie\", \"effects\": {\"health\": 0, \"happiness\": 0, \"wealth\": 0, \"morality\": 0}, \"karma_shift\": 0, \"consequence\": \"2-3 phrases\"}]}' }\n    ]\n  },\n  avatar, stats, karma, day, chapter, age, name\n}}];"
       }
     },
 
     {
-      "id": "if-dead",
-      "name": "Mort ?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [720, 400],
-      "parameters": {
-        "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
-          "conditions": [
-            {
-              "id": "c1",
-              "leftValue": "={{ $json._isDead }}",
-              "rightValue": true,
-              "operator": { "type": "boolean", "operation": "true" }
-            }
-          ],
-          "combinator": "and"
-        }
-      }
-    },
-
-    {
-      "id": "respond-death",
-      "name": "Respond — Death",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [980, 260],
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json }}",
-        "options": {
-          "responseHeaders": {
-            "entries": [
-              { "name": "Access-Control-Allow-Origin", "value": "*" }
-            ]
-          }
-        }
-      }
-    },
-
-    {
-      "id": "call-openai",
-      "name": "Call OpenAI API",
+      "id": "call-groq",
+      "name": "Call Groq API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [980, 500],
+      "position": [720, 400],
+      "continueOnFail": true,
       "parameters": {
         "method": "POST",
         "url": "https://api.groq.com/openai/v1/chat/completions",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "Bearer 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" },
+            { "name": "Authorization", "value": "Bearer {{ $vars.GROQ_API_KEY }}" },
             { "name": "Content-Type", "value": "application/json" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.apiPayload) }}",
+        "jsonBody": "={{ $json._skipApi ? '{}' : JSON.stringify($json.apiPayload) }}",
         "options": {
-          "response": { "response": { "fullResponse": true } }
+          "response": { "response": { "fullResponse": true } },
+          "timeout": 30000
         }
       }
     },
 
     {
-      "id": "parse-response",
-      "name": "Parse & Build Response",
+      "id": "build-final",
+      "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1240, 500],
+      "position": [980, 400],
       "parameters": {
-        "jsCode": "const httpRes = $input.first().json;\nconst ctx = $('Compute Risk & Build Prompt').first().json;\n\nlet responseBody = httpRes.body;\nif (typeof responseBody === 'string') {\n  try { responseBody = JSON.parse(responseBody); } catch(e) {}\n}\n\nconst rawText = responseBody?.choices?.[0]?.message?.content || '';\nconst clean = rawText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(clean);\n  if (!parsed.narrative || !Array.isArray(parsed.choices)) throw new Error('bad structure');\n} catch(e) {\n  parsed = {\n    narrative: 'Le destin hesite entre les mondes...',\n    chapter_title: 'Interlude',\n    whisper: 'Patience...',\n    choices: [\n      { text: 'Attendre et observer', emoji: '\\uD83D\\uDC41', tag: 'neutre', effects: { health: 0, happiness: 0, wealth: 0, morality: 0 }, karma_shift: 0, consequence: 'Rien ne se passe... pour l\\'instant.' }\n    ]\n  };\n}\n\nreturn [{ json: {\n  ...parsed,\n  _isDead: false,\n  avatar: ctx.avatar,\n  day: ctx.day,\n  chapter: ctx.chapter,\n  age: ctx.age,\n  _deathRisk: ctx._deathRisk,\n  _angelUnlocked: ctx._angelUnlocked\n}}];"
+        "jsCode": "const ctx = $('Compute Risk & Prompt').first().json;\n\n// Death case\nif (ctx._isDead) {\n  return [{ json: {\n    _isDead: true,\n    deathCause: ctx.deathCause,\n    epitaph: ctx.epitaph,\n    avatar: ctx.avatar,\n    age: ctx.age,\n    day: ctx.day,\n    stats: ctx.stats,\n    karma: ctx.karma,\n    name: ctx.name\n  }}];\n}\n\n// Parse Groq response\nlet parsed = null;\ntry {\n  const httpRes = $input.first().json;\n  let body = httpRes.body || httpRes;\n  if (typeof body === 'string') body = JSON.parse(body);\n  const rawText = body?.choices?.[0]?.message?.content || '';\n  const clean = rawText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  parsed = JSON.parse(clean);\n  if (!parsed.narrative || !Array.isArray(parsed.choices)) throw new Error('bad');\n} catch(e) {\n  parsed = {\n    narrative: 'Le destin hesite entre les mondes. Quelque chose resiste dans le silence...',\n    chapter_title: 'Interlude',\n    whisper: 'Patience...',\n    choices: [\n      { text: 'Attendre et observer', emoji: '\\uD83D\\uDC41', tag: 'neutre', effects: { health: 0, happiness: 1, wealth: 0, morality: 1 }, karma_shift: 0, consequence: 'Le temps passe doucement.' },\n      { text: 'Chercher une reponse', emoji: '\\uD83D\\uDD0D', tag: 'exploration', effects: { health: 0, happiness: 3, wealth: -1, morality: 2 }, karma_shift: 1, consequence: 'Tu decouvres quelque chose.' },\n      { text: 'Ignorer et avancer', emoji: '\\uD83D\\uDEB6', tag: 'determination', effects: { health: -1, happiness: -2, wealth: 2, morality: -1 }, karma_shift: -1, consequence: 'Tu avances sans regarder en arriere.' }\n    ]\n  };\n}\n\nreturn [{ json: {\n  ...parsed,\n  _isDead: false,\n  avatar: ctx.avatar,\n  day: ctx.day,\n  chapter: ctx.chapter,\n  age: ctx.age,\n  _deathRisk: 0,\n  _angelUnlocked: (ctx.stats?.happiness || 0) > 80\n}}];"
       }
     },
 
     {
-      "id": "respond-choices",
-      "name": "Respond — Choices",
+      "id": "respond-final",
+      "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1500, 500],
+      "position": [1240, 400],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}",
+        "responseBody": "={{ JSON.stringify($json) }}",
         "options": {
           "responseHeaders": {
             "entries": [
-              { "name": "Access-Control-Allow-Origin", "value": "*" }
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Content-Type", "value": "application/json" }
             ]
           }
         }
@@ -128,7 +90,7 @@
       "name": "Webhook — Consequence",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [200, 800],
+      "position": [200, 700],
       "parameters": {
         "httpMethod": "POST",
         "path": "animus-consequence",
@@ -140,28 +102,29 @@
 
     {
       "id": "apply-effects",
-      "name": "Apply Choice Effects",
+      "name": "Apply Effects",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 800],
+      "position": [460, 700],
       "parameters": {
-        "jsCode": "const body = $input.first().json.body;\nconst choice = body.choice || {};\nconst stats = body.stats || { health: 80, happiness: 75, wealth: 40, morality: 70 };\nconst fx = choice.effects || {};\n\nconst newStats = {\n  health: Math.max(0, Math.min(100, stats.health + (fx.health || 0))),\n  happiness: Math.max(0, Math.min(100, stats.happiness + (fx.happiness || 0))),\n  wealth: Math.max(0, Math.min(100, stats.wealth + (fx.wealth || 0))),\n  morality: Math.max(0, Math.min(100, stats.morality + (fx.morality || 0)))\n};\n\nlet newKarma = Math.max(0, Math.min(100, (body.karma || 50) + (choice.karma_shift || 0)));\n\n// Happiness cap\nconst happinessCap = newKarma < 20 ? 40 : newKarma < 40 ? 60 : newKarma < 60 ? 80 : 100;\nif (newStats.happiness > happinessCap) newStats.happiness = happinessCap;\n\n// Day/chapter progression\nlet newChapter = (body.chapter || 1) + 1;\nlet newDay = body.day || 1;\nlet newAge = body.age || 16;\nlet dayComplete = false;\n\nif (newChapter > 3) {\n  newChapter = 1;\n  newDay++;\n  dayComplete = true;\n  newAge = 16 + newDay - 1;\n}\n\nconst healthDead = newStats.health <= 0;\nconst happinessDead = newStats.happiness <= 0;\n\nreturn [{ json: {\n  stats: newStats,\n  karma: newKarma,\n  day: newDay,\n  chapter: newChapter,\n  age: newAge,\n  dayComplete,\n  healthDead: healthDead || happinessDead,\n  happinessCap,\n  consequence: choice.consequence || '',\n  avatar: body.avatar || 'angel'\n}}];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst choice = body.choice || {};\nconst stats = body.stats || { health: 80, happiness: 75, wealth: 40, morality: 70 };\nconst fx = choice.effects || {};\n\nconst newStats = {\n  health: Math.max(0, Math.min(100, stats.health + (fx.health || 0))),\n  happiness: Math.max(0, Math.min(100, stats.happiness + (fx.happiness || 0))),\n  wealth: Math.max(0, Math.min(100, stats.wealth + (fx.wealth || 0))),\n  morality: Math.max(0, Math.min(100, stats.morality + (fx.morality || 0)))\n};\n\nlet newKarma = Math.max(0, Math.min(100, (body.karma || 50) + (choice.karma_shift || 0)));\nconst happinessCap = newKarma < 20 ? 40 : newKarma < 40 ? 60 : newKarma < 60 ? 80 : 100;\nif (newStats.happiness > happinessCap) newStats.happiness = happinessCap;\n\nlet newChapter = (body.chapter || 1) + 1;\nlet newDay = body.day || 1;\nlet dayComplete = false;\nif (newChapter > 3) { newChapter = 1; newDay++; dayComplete = true; }\n\nreturn [{ json: {\n  stats: newStats,\n  karma: newKarma,\n  day: newDay,\n  chapter: newChapter,\n  age: 16 + newDay - 1,\n  dayComplete: dayComplete,\n  healthDead: newStats.health <= 0 || newStats.happiness <= 0,\n  happinessCap: happinessCap,\n  consequence: choice.consequence || '',\n  avatar: body.avatar || 'angel'\n}}];"
       }
     },
 
     {
       "id": "respond-consequence",
-      "name": "Respond — Updated State",
+      "name": "Respond — State",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [720, 800],
+      "position": [720, 700],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}",
+        "responseBody": "={{ JSON.stringify($json) }}",
         "options": {
           "responseHeaders": {
             "entries": [
-              { "name": "Access-Control-Allow-Origin", "value": "*" }
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Content-Type", "value": "application/json" }
             ]
           }
         }
@@ -171,28 +134,22 @@
 
   "connections": {
     "Webhook — Choice": {
-      "main": [[{ "node": "Compute Risk & Build Prompt", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Compute Risk & Prompt", "type": "main", "index": 0 }]]
     },
-    "Compute Risk & Build Prompt": {
-      "main": [[{ "node": "Mort ?", "type": "main", "index": 0 }]]
+    "Compute Risk & Prompt": {
+      "main": [[{ "node": "Call Groq API", "type": "main", "index": 0 }]]
     },
-    "Mort ?": {
-      "main": [
-        [{ "node": "Respond — Death", "type": "main", "index": 0 }],
-        [{ "node": "Call OpenAI API", "type": "main", "index": 0 }]
-      ]
+    "Call Groq API": {
+      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
     },
-    "Call OpenAI API": {
-      "main": [[{ "node": "Parse & Build Response", "type": "main", "index": 0 }]]
-    },
-    "Parse & Build Response": {
-      "main": [[{ "node": "Respond — Choices", "type": "main", "index": 0 }]]
+    "Build Response": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
     },
     "Webhook — Consequence": {
-      "main": [[{ "node": "Apply Choice Effects", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Apply Effects", "type": "main", "index": 0 }]]
     },
-    "Apply Choice Effects": {
-      "main": [[{ "node": "Respond — Updated State", "type": "main", "index": 0 }]]
+    "Apply Effects": {
+      "main": [[{ "node": "Respond — State", "type": "main", "index": 0 }]]
     }
   },
 
