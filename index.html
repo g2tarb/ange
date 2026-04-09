@@ -43,6 +43,50 @@
 </div>
 
 <!-- ============================================================
+     SCREEN 0.1 — TUTORIAL
+     ============================================================ -->
+<div class="screen" id="screen-tutorial">
+  <div class="tuto-container">
+    <div class="tuto-slides" id="tuto-slides">
+
+      <div class="tuto-slide active" data-slide="0">
+        <div class="tuto-icon">&#9775;</div>
+        <h2>Le Concept</h2>
+        <p>Tu incarnes un humain de 16 ans. Une entite invisible guide tes choix a travers la vie. Chaque decision faconne ton destin, tes stats, et ton karma.</p>
+      </div>
+
+      <div class="tuto-slide" data-slide="1">
+        <div class="tuto-icon">&#128330; &#9878; &#129656; &#128293;</div>
+        <h2>4 Guides</h2>
+        <p><strong>Ange</strong> (1x/jour) &mdash; bonheur, amour<br>
+        <strong>Neutre</strong> (2x/jour) &mdash; calcul, equilibre<br>
+        <strong>Dechu</strong> (5x/jour) &mdash; tentation, chute<br>
+        <strong>Diable</strong> (illimite) &mdash; puissance, destruction<br><br>
+        Pour une belle vie, utilise l'Ange avec sagesse et reviens chaque jour.</p>
+      </div>
+
+      <div class="tuto-slide" data-slide="2">
+        <div class="tuto-icon">&#127769;</div>
+        <h2>5 Chapitres par Jour</h2>
+        <p>Chaque jour tu vis 5 chapitres. A la fin, une chronique raconte ta journee. Ton karma bloque le bonheur si tu sombres trop. Des evenements majeurs marquent chaque age de ta vie.</p>
+      </div>
+
+    </div>
+
+    <div class="tuto-dots">
+      <span class="tuto-dot active" onclick="goToSlide(0)"></span>
+      <span class="tuto-dot" onclick="goToSlide(1)"></span>
+      <span class="tuto-dot" onclick="goToSlide(2)"></span>
+    </div>
+
+    <div class="tuto-nav">
+      <button class="tuto-btn" id="tuto-prev" onclick="prevSlide()" style="visibility:hidden">Precedent</button>
+      <button class="tuto-btn" id="tuto-next" onclick="nextSlide()">Suivant</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
      SCREEN 0.5 — CHARACTER CREATION
      ============================================================ -->
 <div class="screen" id="screen-character">
@@ -220,6 +264,8 @@
       <span class="ci-age" id="ci-age">16 ans</span>
       <span class="ci-sep">&middot;</span>
       <span class="ci-city" id="ci-city">—</span>
+      <span class="ci-sep">&middot;</span>
+      <span class="ci-title" id="ci-title"></span>
     </div>
 
     <!-- Top bar: stats + karma -->
@@ -378,12 +424,29 @@
     <!-- Final timeline -->
     <div class="go-timeline" id="go-timeline"></div>
 
-    <button class="btn-restart" onclick="restartGame()">
-      <span class="btn-text">Recommencer</span>
-      <span class="btn-line"></span>
-    </button>
+    <div class="go-buttons">
+      <button class="btn-restart" onclick="shareDeathCard()">
+        <span class="btn-text">&#8679; Partager</span>
+        <span class="btn-line"></span>
+      </button>
+      <button class="btn-restart" onclick="restartGame()">
+        <span class="btn-text">Recommencer</span>
+        <span class="btn-line"></span>
+      </button>
+    </div>
+    <canvas id="share-canvas" style="display:none"></canvas>
   </div>
 
+</div>
+
+<!-- Milestone popup -->
+<div class="milestone-overlay" id="milestone-overlay">
+  <div class="milestone-card" id="milestone-card">
+    <div class="milestone-age" id="milestone-age"></div>
+    <div class="milestone-title" id="milestone-title"></div>
+    <div class="milestone-text" id="milestone-text"></div>
+    <button class="tuto-btn" onclick="closeMilestone()">Continuer</button>
+  </div>
 </div>
 
 <!-- Loading overlay -->

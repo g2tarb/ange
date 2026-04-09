@@ -155,6 +155,49 @@ const AVATAR_DAILY_LIMITS = {
   devil: Infinity
 };
 
+const DAILY_CHAPTER_LIMIT = 5;
+
+// ============================================================
+// AGE MILESTONES
+// ============================================================
+const AGE_MILESTONES = {
+  18: { title: 'Majorite', text: 'Tu as 18 ans. Le monde s\'ouvre devant toi. Tes choix n\'appartiennent plus qu\'a toi.', bonus: { happiness: 5, morality: 3 } },
+  21: { title: 'Independance', text: 'A 21 ans, tu quittes le nid. Un appartement, un debut de liberte, et l\'inconnu.', bonus: { wealth: 5, happiness: 3 } },
+  25: { title: 'Premier vrai travail', text: 'Tu signes ton premier CDI. La vie adulte commence vraiment.', bonus: { wealth: 10, happiness: 5 } },
+  30: { title: 'La trentaine', text: 'Tu as 30 ans. Le temps file. Les reves d\'enfant cedent leur place aux choix qui comptent.', bonus: { morality: 5 } },
+  40: { title: 'Crise de la quarantaine', text: 'A 40 ans, tu regardes en arriere. As-tu vecu la vie que tu voulais ?', bonus: { happiness: -5, morality: 5 } },
+  50: { title: 'La sagesse', text: 'Un demi-siecle. Les erreurs deviennent des lecons. Les joies deviennent des tresors.', bonus: { morality: 10, health: -5 } },
+  65: { title: 'Retraite', text: 'Le travail est fini. Le reste de ta vie t\'appartient entierement.', bonus: { happiness: 8, wealth: -5, health: -3 } },
+  75: { title: 'Le crepuscule', text: 'Chaque jour est un cadeau maintenant. Tu le sais mieux que quiconque.', bonus: { health: -10, morality: 8 } }
+};
+
+// ============================================================
+// NPC SYSTEM
+// ============================================================
+const NPC_TEMPLATES = {
+  18: { role: 'bestFriend', label: 'Meilleur(e) ami(e)', names: ['Lucas','Emma','Noah','Lea','Hugo','Chloe','Louis','Manon','Jules','Camille'] },
+  22: { role: 'rival', label: 'Rival(e)', names: ['Nathan','Sarah','Theo','Ines','Raphael','Jade','Maxime','Lola','Antoine','Clara'] },
+  25: { role: 'love', label: 'Grand amour', names: ['Gabriel','Louise','Adam','Alice','Arthur','Juliette','Tom','Charlotte','Paul','Margaux'] }
+};
+
+// ============================================================
+// TITLES SYSTEM
+// ============================================================
+const TITLES = [
+  { id: 'newborn', name: 'Ame Naissante', condition: s => s.totalChapters <= 3 },
+  { id: 'saint', name: 'Le Saint', condition: s => s.karma >= 0.85 && s.stats.morality >= 85 },
+  { id: 'golden', name: 'Age d\'Or', condition: s => s.stats.happiness >= 90 && s.stats.health >= 80 },
+  { id: 'tycoon', name: 'Le Magnat', condition: s => s.stats.wealth >= 90 },
+  { id: 'balanced', name: 'L\'Equilibriste', condition: s => s.karma >= 0.4 && s.karma <= 0.6 },
+  { id: 'survivor', name: 'Le Survivant', condition: s => getAge() >= 50 },
+  { id: 'elder', name: 'Le Sage', condition: s => getAge() >= 70 && s.stats.morality >= 70 },
+  { id: 'fallen', name: 'Ame Perdue', condition: s => s.karma < 0.2 },
+  { id: 'damned', name: 'Le Damne', condition: s => s.karma < 0.1 && s.stats.morality < 20 },
+  { id: 'phoenix', name: 'Le Phenix', condition: s => s.stats.health <= 25 && s.stats.health > 0 },
+  { id: 'wanderer', name: 'Le Vagabond', condition: s => s.totalChapters >= 20 },
+  { id: 'legend', name: 'Legende Vivante', condition: s => s.totalChapters >= 50 },
+];
+
 // ============================================================
 // WEBHOOKS N8N v3 — Remplace ces URLs par tes webhooks de production
 // ============================================================
@@ -188,6 +231,10 @@ function defaultState() {
     currentAvatar: 'angel',
     stats: { health: 80, happiness: 75, wealth: 40, morality: 70 },
     avatarUsesToday: { angel: 0, neutral: 0, fallen: 0, devil: 0 },
+    milestonesTriggered: [],
+    npcs: [],
+    earnedTitles: [],
+    currentTitle: '',
     history: [],
     alive: true
   };
@@ -448,7 +495,7 @@ function resumeGame() {
   updateAvatarSwitcher();
   updateGameUI();
 
-  if (state.chaptersToday < 3) {
+  if (state.chaptersToday < DAILY_CHAPTER_LIMIT) {
     generateChapter();
   }
 
@@ -764,10 +811,15 @@ function skipCinematic() {
 
   initAudio();
   playSFX('select');
-
-  showScreen('screen-character');
   applyTheme('angel', false);
-  showSaveResume();
+
+  // If save exists, go straight to character screen with resume option
+  if (hasSave()) {
+    showScreen('screen-character');
+    showSaveResume();
+  } else {
+    showScreen('screen-tutorial');
+  }
 }
 
 // ============================================================
@@ -1073,9 +1125,9 @@ function updateGameUI(showDeltas = false) {
 
   // Day / chapter counter
   document.getElementById('day-display').textContent     = state.day;
-  document.getElementById('chapter-display').textContent = state.chaptersToday;
+  document.getElementById('chapter-display').textContent = state.chaptersToday + '/' + DAILY_CHAPTER_LIMIT;
 
-  const remaining = 3 - state.chaptersToday;
+  const remaining = DAILY_CHAPTER_LIMIT - state.chaptersToday;
   document.getElementById('choices-remaining-label').textContent =
     remaining > 0
       ? `${remaining} chapitre${remaining > 1 ? 's' : ''} disponible${remaining > 1 ? 's' : ''}`
@@ -1084,7 +1136,7 @@ function updateGameUI(showDeltas = false) {
   // Daily limit
   const limitMsg    = document.getElementById('daily-limit-msg');
   const choicesGrid = document.getElementById('choices-grid');
-  if (state.chaptersToday >= 3) {
+  if (state.chaptersToday >= DAILY_CHAPTER_LIMIT) {
     limitMsg.style.display    = 'block';
     choicesGrid.style.display = 'none';
   } else {
@@ -1108,10 +1160,13 @@ function updateGameUI(showDeltas = false) {
 // GENERATE CHAPTER VIA CLAUDE API
 // ============================================================
 async function generateChapter() {
-  if (state.chaptersToday >= 3) {
+  if (state.chaptersToday >= DAILY_CHAPTER_LIMIT) {
     generateDailyRecap();
     return;
   }
+
+  // Check milestones before chapter
+  if (checkMilestones()) return;
 
   const av  = state.currentAvatar;
 
@@ -1150,7 +1205,8 @@ async function generateChapter() {
         morality:  Math.round(state.stats.morality)
       },
       karma: Math.round(state.karma * 100),
-      history: state.history.slice(-5).map(h => ({ day: h.day, summary: h.summary }))
+      history: state.history.slice(-5).map(h => ({ day: h.day, summary: h.summary })),
+      npcContext: getNpcContext()
     });
 
     setLoading(false);
@@ -1322,7 +1378,7 @@ function renderChoices(choices) {
 // MAKE A CHOICE
 // ============================================================
 async function makeChoice(choiceData) {
-  if (state.chaptersToday >= 3) return;
+  if (state.chaptersToday >= DAILY_CHAPTER_LIMIT) return;
 
   initAudio();
   playSFX('choice');
@@ -1419,10 +1475,13 @@ async function makeChoice(choiceData) {
     }
 
     updateGameUI(true);
+    evaluateTitles();
 
-    if (state.chaptersToday < 3) {
+    if (state.chaptersToday < DAILY_CHAPTER_LIMIT) {
       setTimeout(() => showWhisper(), 1200);
       setTimeout(generateChapter, 1600);
+    } else {
+      setTimeout(generateDailyRecap, 800);
     }
 
   } catch (e) {
@@ -1448,7 +1507,7 @@ async function makeChoice(choiceData) {
       setTimeout(triggerGameOver, 1500);
       return;
     }
-    if (state.chaptersToday < 3) setTimeout(generateChapter, 1600);
+    if (state.chaptersToday < DAILY_CHAPTER_LIMIT) setTimeout(generateChapter, 1600);
   }
 }
 
@@ -1598,6 +1657,219 @@ document.addEventListener('keydown', (e) => {
     toggleSound();
   }
 });
+
+// ============================================================
+// TUTORIAL
+// ============================================================
+let currentSlide = 0;
+
+function goToSlide(n) {
+  currentSlide = n;
+  document.querySelectorAll('.tuto-slide').forEach((s, i) => {
+    s.classList.toggle('active', i === n);
+  });
+  document.querySelectorAll('.tuto-dot').forEach((d, i) => {
+    d.classList.toggle('active', i === n);
+  });
+  document.getElementById('tuto-prev').style.visibility = n === 0 ? 'hidden' : 'visible';
+  document.getElementById('tuto-next').textContent = n === 2 ? 'Commencer' : 'Suivant';
+}
+
+function nextSlide() {
+  if (currentSlide >= 2) {
+    showScreen('screen-character');
+    showSaveResume();
+    return;
+  }
+  goToSlide(currentSlide + 1);
+}
+
+function prevSlide() {
+  if (currentSlide > 0) goToSlide(currentSlide - 1);
+}
+
+// ============================================================
+// MILESTONE SYSTEM
+// ============================================================
+let pendingMilestone = null;
+
+function checkMilestones() {
+  const age = getAge();
+  const milestone = AGE_MILESTONES[age];
+  if (!milestone) return false;
+  if (state.milestonesTriggered.includes(age)) return false;
+
+  // Trigger milestone
+  state.milestonesTriggered.push(age);
+
+  // Apply bonuses
+  if (milestone.bonus) {
+    Object.keys(milestone.bonus).forEach(k => {
+      state.stats[k] = Math.max(0, Math.min(100, state.stats[k] + milestone.bonus[k]));
+    });
+  }
+
+  // Check for NPC generation at this age
+  checkNpcGeneration(age);
+
+  // Show milestone popup
+  document.getElementById('milestone-age').textContent = age + ' ans';
+  document.getElementById('milestone-title').textContent = milestone.title;
+  document.getElementById('milestone-text').textContent = milestone.text;
+  document.getElementById('milestone-overlay').classList.add('active');
+
+  playSFX('select');
+  saveState();
+  updateGameUI();
+  return true;
+}
+
+function closeMilestone() {
+  document.getElementById('milestone-overlay').classList.remove('active');
+}
+
+// ============================================================
+// NPC SYSTEM
+// ============================================================
+function checkNpcGeneration(age) {
+  const template = NPC_TEMPLATES[age];
+  if (!template) return;
+  if (state.npcs.find(n => n.role === template.role)) return;
+
+  const name = template.names[Math.floor(Math.random() * template.names.length)];
+  state.npcs.push({
+    name,
+    role: template.role,
+    label: template.label,
+    metAtAge: age,
+    alive: true
+  });
+
+  setTimeout(() => {
+    showNotif(`Nouvelle rencontre : ${name} (${template.label})`);
+  }, 1500);
+}
+
+function getNpcContext() {
+  if (state.npcs.length === 0) return '';
+  return 'Personnages secondaires: ' + state.npcs
+    .filter(n => n.alive)
+    .map(n => n.name + ' (' + n.label + ', rencontre a ' + n.metAtAge + ' ans)')
+    .join(', ') + '. Integre-les naturellement dans le recit.';
+}
+
+// ============================================================
+// TITLES SYSTEM
+// ============================================================
+function evaluateTitles() {
+  let best = '';
+  TITLES.forEach(t => {
+    if (t.condition(state)) {
+      if (!state.earnedTitles.includes(t.id)) {
+        state.earnedTitles.push(t.id);
+        showNotif(`Titre debloque : ${t.name}`);
+      }
+      best = t.name;
+    }
+  });
+  if (best && best !== state.currentTitle) {
+    state.currentTitle = best;
+  }
+  const el = document.getElementById('ci-title');
+  if (el) el.textContent = state.currentTitle;
+  saveState();
+}
+
+// ============================================================
+// SHARE DEATH CARD
+// ============================================================
+function shareDeathCard() {
+  const canvas = document.getElementById('share-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = 600;
+  canvas.height = 400;
+
+  // Background
+  const grad = ctx.createLinearGradient(0, 0, 0, 400);
+  grad.addColorStop(0, '#0a0a12');
+  grad.addColorStop(1, '#050508');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 600, 400);
+
+  // Border
+  ctx.strokeStyle = 'rgba(240,192,64,0.3)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(20, 20, 560, 360);
+
+  // Title
+  ctx.fillStyle = '#f0c040';
+  ctx.font = 'bold 28px serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('ANIMUS', 300, 70);
+
+  // Name
+  ctx.fillStyle = '#e0d0b0';
+  ctx.font = 'italic 18px serif';
+  ctx.fillText(state.characterName, 300, 110);
+
+  // City + Age
+  ctx.fillStyle = '#806040';
+  ctx.font = '12px monospace';
+  ctx.fillText(state.characterCity + ' \u2014 ' + getAge() + ' ans', 300, 135);
+
+  // Title earned
+  if (state.currentTitle) {
+    ctx.fillStyle = '#f0c040';
+    ctx.font = '11px monospace';
+    ctx.fillText('\u00AB ' + state.currentTitle + ' \u00BB', 300, 158);
+  }
+
+  // Stats
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
+  const stats = [
+    ['\u2665 Sante', Math.round(state.stats.health)],
+    ['\u2605 Bonheur', Math.round(state.stats.happiness)],
+    ['\u25C6 Richesse', Math.round(state.stats.wealth)],
+    ['\u263D Moralite', Math.round(state.stats.morality)]
+  ];
+  stats.forEach((s, i) => {
+    ctx.fillStyle = '#806040';
+    ctx.fillText(s[0], 180, 200 + i * 22);
+    ctx.fillStyle = s[1] <= 20 ? '#ff4040' : '#c0a060';
+    ctx.fillText(s[1] + '/100', 360, 200 + i * 22);
+  });
+
+  // Karma
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#f0c040';
+  ctx.font = 'bold 14px monospace';
+  ctx.fillText('Karma: ' + Math.round(state.karma * 100) + '%', 300, 310);
+
+  // Days + chapters
+  ctx.fillStyle = '#806040';
+  ctx.font = '11px monospace';
+  ctx.fillText('Jour ' + state.day + ' \u2014 ' + state.totalChapters + ' chapitres', 300, 335);
+
+  // NPCs
+  if (state.npcs.length > 0) {
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#605040';
+    const npcText = state.npcs.map(n => n.name).join(', ');
+    ctx.fillText('Rencontres: ' + npcText, 300, 355);
+  }
+
+  // Footer
+  ctx.fillStyle = '#403020';
+  ctx.font = '9px monospace';
+  ctx.fillText('animus \u2014 l\'influence invisible', 300, 385);
+
+  // Download
+  const link = document.createElement('a');
+  link.download = 'animus_' + state.characterName + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
 
 // ============================================================
 // INIT
