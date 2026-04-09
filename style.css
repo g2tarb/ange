@@ -1837,6 +1837,83 @@ body.theme-angel .panel-avatar::before {
   transform: scale(1.1);
 }
 
+.switch-btn.exhausted {
+  opacity: 0.25;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: rgba(255,255,255,0.05) !important;
+}
+
+.switch-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  font-family: var(--font-mono);
+  font-size: 0.35rem;
+  background: rgba(0,0,0,0.8);
+  border: 1px solid var(--accent-1);
+  color: var(--accent-1);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.switch-badge.empty {
+  border-color: #ff4040;
+  color: #ff4040;
+}
+
+.switch-btn { position: relative; }
+
+/* ── Daily Recap ─────────────────────────────────────────── */
+.recap-header {
+  font-family: var(--font-title);
+  font-size: 1rem;
+  color: var(--accent-1);
+  text-shadow: 0 0 20px var(--accent-glow);
+  margin-bottom: 24px;
+  letter-spacing: 0.1em;
+}
+
+.recap-text {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-style: italic;
+  line-height: 2;
+  color: var(--text-primary);
+  text-align: left;
+  white-space: pre-line;
+  margin-bottom: 30px;
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-1) transparent;
+}
+
+.recap-footer {
+  padding-top: 20px;
+  border-top: 1px solid rgba(var(--accent-rgb), 0.1);
+}
+
+.recap-footer p {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.recap-limits {
+  margin-top: 10px;
+  color: var(--accent-1) !important;
+  letter-spacing: 0.15em;
+  font-size: 0.5rem !important;
+}
+
 /* ============================================================
    HAPPINESS CAP INDICATOR
    ============================================================ */

@@ -145,8 +145,15 @@ const AVATAR_EMOJIS = {
 // ============================================================
 // GAME STATE
 // ============================================================
-const SAVE_KEY = 'animus_save_v4';
+const SAVE_KEY = 'animus_save_v5';
 const START_AGE = 16;
+
+const AVATAR_DAILY_LIMITS = {
+  angel: 1,
+  neutral: 2,
+  fallen: 5,
+  devil: Infinity
+};
 
 // ============================================================
 // WEBHOOKS N8N v3 — Remplace ces URLs par tes webhooks de production
@@ -180,9 +187,20 @@ function defaultState() {
     selectedAvatar: 'angel',
     currentAvatar: 'angel',
     stats: { health: 80, happiness: 75, wealth: 40, morality: 70 },
+    avatarUsesToday: { angel: 0, neutral: 0, fallen: 0, devil: 0 },
     history: [],
     alive: true
   };
+}
+
+function getAvatarRemaining(avatarKey) {
+  const limit = AVATAR_DAILY_LIMITS[avatarKey];
+  if (limit === Infinity) return Infinity;
+  return Math.max(0, limit - (state.avatarUsesToday[avatarKey] || 0));
+}
+
+function canUseAvatar(avatarKey) {
+  return getAvatarRemaining(avatarKey) > 0;
 }
 
 function getAge() {
@@ -419,6 +437,7 @@ function resumeGame() {
   const today = new Date().toDateString();
   if (state.lastPlayDate !== today) {
     state.chaptersToday = 0;
+    state.avatarUsesToday = { angel: 0, neutral: 0, fallen: 0, devil: 0 };
     state.lastPlayDate = today;
     if (state.totalChapters > 0) state.day++;
   }
@@ -838,11 +857,18 @@ function startGame() {
   const today = new Date().toDateString();
   if (state.lastPlayDate !== today) {
     state.chaptersToday = 0;
+    state.avatarUsesToday = { angel: 0, neutral: 0, fallen: 0, devil: 0 };
     state.lastPlayDate  = today;
     if (state.totalChapters > 0) state.day++;
   }
 
-  // Set chosen avatar as current guide (can be changed each day)
+  // Check if selected avatar is still available
+  if (!canUseAvatar(selectedAvatar)) {
+    showNotif('Cet avatar est epuise pour aujourd\'hui. Choisis-en un autre.');
+    return;
+  }
+
+  // Set chosen avatar as current guide
   state.selectedAvatar = selectedAvatar;
   state.currentAvatar  = selectedAvatar;
 
@@ -870,6 +896,12 @@ function startGame() {
 function switchAvatar(avatarKey) {
   if (avatarKey === state.currentAvatar) return;
 
+  if (!canUseAvatar(avatarKey)) {
+    const limit = AVATAR_DAILY_LIMITS[avatarKey];
+    showNotif(`${AVATAR_CONFIG[avatarKey].emoji} Epuise aujourd'hui (${limit}x/jour). Reviens demain.`);
+    return;
+  }
+
   initAudio();
   playSFX('avatar_change');
   screenShake();
@@ -888,7 +920,28 @@ function switchAvatar(avatarKey) {
 
 function updateAvatarSwitcher() {
   document.querySelectorAll('.switch-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.av === state.currentAvatar);
+    const av = btn.dataset.av;
+    const isActive = av === state.currentAvatar;
+    const remaining = getAvatarRemaining(av);
+    const exhausted = remaining <= 0;
+
+    btn.classList.toggle('active', isActive);
+    btn.classList.toggle('exhausted', exhausted);
+    btn.disabled = exhausted;
+
+    // Update or create badge
+    let badge = btn.querySelector('.switch-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'switch-badge';
+      btn.appendChild(badge);
+    }
+    if (remaining === Infinity) {
+      badge.textContent = '\u221E';
+    } else {
+      badge.textContent = remaining;
+    }
+    badge.classList.toggle('empty', exhausted);
   });
 }
 
@@ -1055,9 +1108,25 @@ function updateGameUI(showDeltas = false) {
 // GENERATE CHAPTER VIA CLAUDE API
 // ============================================================
 async function generateChapter() {
-  if (state.chaptersToday >= 3) { updateGameUI(); return; }
+  if (state.chaptersToday >= 3) {
+    generateDailyRecap();
+    return;
+  }
 
   const av  = state.currentAvatar;
+
+  // Check avatar limit
+  if (!canUseAvatar(av)) {
+    showNotif(`${AVATAR_CONFIG[av].emoji} Epuise. Change d'avatar ou reviens demain.`);
+    updateAvatarSwitcher();
+    return;
+  }
+
+  // Track usage
+  state.avatarUsesToday[av] = (state.avatarUsesToday[av] || 0) + 1;
+  saveState();
+  updateAvatarSwitcher();
+
   const cfg = AVATAR_CONFIG[av];
   const randomLoading = cfg.loadingTexts[Math.floor(Math.random() * cfg.loadingTexts.length)];
 
@@ -1120,6 +1189,81 @@ async function generateChapter() {
       { text: "Se replier sur soi",    emoji: "\u{1F311}", tag: "solitude", effects: { health: -1, happiness: -3, wealth: 0, morality: -1 }, karma_shift: -2, consequence: "L'isolement t'enveloppe." }
     ]);
   }
+}
+
+// ============================================================
+// DAILY RECAP — Long story after 3 choices
+// ============================================================
+async function generateDailyRecap() {
+  const cfg = AVATAR_CONFIG[state.currentAvatar];
+  setLoading(true, 'L\'histoire du jour s\'ecrit...');
+
+  const todayHistory = state.history.filter(h => h.day === state.day);
+  const summaries = todayHistory.map((h, i) => `Chapitre ${i + 1}: ${h.summary}`).join('\n');
+
+  try {
+    const data = await callWebhook(WEBHOOK_CHOICE_URL, {
+      avatar: state.currentAvatar,
+      name: state.characterName,
+      city: state.characterCity,
+      day: state.day,
+      chapter: 99,
+      age: getAge(),
+      stats: {
+        health: Math.round(state.stats.health),
+        happiness: Math.round(state.stats.happiness),
+        wealth: Math.round(state.stats.wealth),
+        morality: Math.round(state.stats.morality)
+      },
+      karma: Math.round(state.karma * 100),
+      history: todayHistory,
+      isRecap: true,
+      recapSummaries: summaries
+    });
+
+    setLoading(false);
+
+    if (data._isDead) {
+      triggerServerDeath(data);
+      return;
+    }
+
+    // Display long recap
+    const recapEl = document.getElementById('daily-limit-msg');
+    const choicesGrid = document.getElementById('choices-grid');
+    choicesGrid.style.display = 'none';
+    recapEl.style.display = 'block';
+
+    const narrative = data.narrative || 'La journee touche a sa fin...';
+    recapEl.innerHTML = `
+      <div class="recap-header">${data.chapter_title || 'Chronique du Jour ' + state.day}</div>
+      <div class="recap-text">${narrative}</div>
+      <div class="recap-footer">
+        <div class="limit-icon">&#127769;</div>
+        <p>Reviens demain pour continuer le destin de ${state.characterName}.</p>
+        <p class="recap-limits">Demain : Ange x1 &middot; Neutre x2 &middot; Dechu x5 &middot; Diable &infin;</p>
+      </div>
+    `;
+
+    if (data.whisper) showWhisper(data.whisper);
+
+  } catch(e) {
+    console.error('Recap error:', e);
+    setLoading(false);
+
+    const recapEl = document.getElementById('daily-limit-msg');
+    const choicesGrid = document.getElementById('choices-grid');
+    choicesGrid.style.display = 'none';
+    recapEl.style.display = 'block';
+    recapEl.innerHTML = `
+      <div class="limit-icon">&#127769;</div>
+      <h3>La nuit est tombee</h3>
+      <p>Tu as vecu tes 3 chapitres du jour.<br>Reviens demain pour continuer ton destin.</p>
+      <p class="recap-limits">Demain : Ange x1 &middot; Neutre x2 &middot; Dechu x5 &middot; Diable &infin;</p>
+    `;
+  }
+
+  updateGameUI();
 }
 
 // ============================================================
