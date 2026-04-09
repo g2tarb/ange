@@ -361,6 +361,15 @@ function toggleSound() {
 // ============================================================
 function saveState() {
   localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  // Flash save indicator
+  const ind = document.getElementById('save-indicator');
+  if (ind) {
+    ind.textContent = 'Sauvegarde OK';
+    ind.classList.remove('saved');
+    void ind.offsetHeight;
+    ind.classList.add('saved');
+    setTimeout(() => { ind.textContent = 'Sauvegarde auto'; }, 2000);
+  }
 }
 
 function loadState() {
@@ -369,6 +378,97 @@ function loadState() {
     try { state = { ...defaultState(), ...JSON.parse(raw) }; }
     catch (e) { state = defaultState(); }
   }
+}
+
+function hasSave() {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (!raw) return false;
+  try {
+    const s = JSON.parse(raw);
+    return s.characterName && s.totalChapters > 0;
+  } catch(e) { return false; }
+}
+
+function showSaveResume() {
+  if (!hasSave()) return;
+  loadState();
+
+  const el = document.getElementById('save-resume');
+  el.style.display = 'block';
+  document.getElementById('save-name').textContent = state.characterName;
+  document.getElementById('save-age').textContent = getAge() + ' ans';
+  document.getElementById('save-city').textContent = state.characterCity;
+  document.getElementById('save-stats-preview').textContent =
+    `\u2665 ${Math.round(state.stats.health)} \u00B7 \u2605 ${Math.round(state.stats.happiness)} \u00B7 \u25C6 ${Math.round(state.stats.wealth)} \u00B7 \u263D ${Math.round(state.stats.morality)}`;
+  document.getElementById('save-day-preview').textContent =
+    `Jour ${state.day} \u00B7 ${state.totalChapters} chapitres`;
+}
+
+function resumeGame() {
+  loadState();
+
+  initAudio();
+  playSFX('choice');
+
+  const av = state.currentAvatar || 'angel';
+  selectedAvatar = av;
+
+  prevStats = { ...state.stats };
+
+  // Daily reset
+  const today = new Date().toDateString();
+  if (state.lastPlayDate !== today) {
+    state.chaptersToday = 0;
+    state.lastPlayDate = today;
+    if (state.totalChapters > 0) state.day++;
+  }
+  saveState();
+
+  showScreen('screen-game');
+  applyTheme(av, true);
+  updateAvatarSwitcher();
+  updateGameUI();
+
+  if (state.chaptersToday < 3) {
+    generateChapter();
+  }
+
+  setTimeout(() => showWhisper(), 2000);
+}
+
+function exportSave() {
+  const data = localStorage.getItem(SAVE_KEY);
+  if (!data) { showNotif('Aucune sauvegarde a exporter.'); return; }
+
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `animus_save_${state.characterName || 'backup'}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showNotif('Sauvegarde exportee.');
+}
+
+function importSave(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!imported.characterName) throw new Error('Fichier invalide');
+      state = { ...defaultState(), ...imported };
+      saveState();
+      showNotif(`Partie de ${state.characterName} importee.`);
+      showSaveResume();
+    } catch(err) {
+      showNotif('Fichier de sauvegarde invalide.');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 }
 
 // ============================================================
@@ -648,6 +748,7 @@ function skipCinematic() {
 
   showScreen('screen-character');
   applyTheme('angel', false);
+  showSaveResume();
 }
 
 // ============================================================
@@ -1277,6 +1378,7 @@ function restartGame() {
   if (cityInput) cityInput.value = '';
 
   document.getElementById('btn-start').classList.remove('visible');
+  document.getElementById('save-resume').style.display = 'none';
   applyTheme('angel', false);
   showScreen('screen-character');
 }

@@ -68,9 +68,26 @@
     </div>
 
     <button class="btn-start visible" id="btn-character" onclick="confirmCharacter()">
-      <span class="btn-text">Choisir mon destin</span>
+      <span class="btn-text">Nouvelle vie</span>
       <span class="btn-line"></span>
     </button>
+
+    <!-- Continue saved game -->
+    <div class="save-resume" id="save-resume" style="display:none">
+      <div class="save-divider"><span>ou</span></div>
+      <div class="save-card" id="save-card" onclick="resumeGame()">
+        <div class="save-card-header">Partie sauvegardee</div>
+        <div class="save-card-info">
+          <span class="save-name" id="save-name">—</span>
+          <span class="save-sep">&middot;</span>
+          <span class="save-detail" id="save-age">— ans</span>
+          <span class="save-sep">&middot;</span>
+          <span class="save-detail" id="save-city">—</span>
+        </div>
+        <div class="save-card-stats" id="save-stats-preview"></div>
+        <div class="save-card-day" id="save-day-preview">Jour 1</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -308,6 +325,14 @@
         Journal des jours passes
       </div>
       <div class="history-log" id="history-log"></div>
+    </div>
+
+    <!-- Save actions -->
+    <div class="save-actions">
+      <span class="save-indicator" id="save-indicator">Sauvegarde auto</span>
+      <button class="save-btn" onclick="exportSave()" title="Exporter la sauvegarde">&#8681; Exporter</button>
+      <button class="save-btn" onclick="document.getElementById('import-file').click()" title="Importer une sauvegarde">&#8679; Importer</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importSave(event)">
     </div>
 
   </div>

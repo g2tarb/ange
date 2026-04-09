@@ -1914,3 +1914,154 @@ body.theme-angel .panel-avatar::before {
 @media (max-width: 480px) {
   .gameover-stats { grid-template-columns: repeat(2, 1fr) !important; }
 }
+
+/* ============================================================
+   SAVE SYSTEM
+   ============================================================ */
+
+/* Resume card on character screen */
+.save-resume {
+  margin-top: 24px;
+  opacity: 0;
+  animation: fade-up 0.8s ease 1.8s forwards;
+}
+
+.save-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.save-divider::before,
+.save-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(var(--accent-rgb), 0.15);
+}
+
+.save-divider span {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.save-card {
+  background: rgba(var(--accent-rgb), 0.05);
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
+  border-radius: 4px;
+  padding: 20px 24px;
+  cursor: pointer;
+  transition: all 0.4s ease;
+  text-align: center;
+}
+
+.save-card:hover {
+  border-color: var(--accent-1);
+  box-shadow: 0 0 30px rgba(var(--accent-rgb), 0.15);
+  transform: translateY(-2px);
+}
+
+.save-card-header {
+  font-family: var(--font-sub);
+  font-size: 0.6rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--accent-1);
+  margin-bottom: 10px;
+}
+
+.save-card-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.save-name {
+  font-family: var(--font-sub);
+  font-size: 0.75rem;
+  color: var(--accent-2);
+  letter-spacing: 0.15em;
+}
+
+.save-sep {
+  color: rgba(var(--accent-rgb), 0.3);
+  font-size: 0.5rem;
+}
+
+.save-detail {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-muted);
+}
+
+.save-card-stats {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.save-card-day {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--accent-1);
+  letter-spacing: 0.2em;
+}
+
+/* In-game save bar */
+.save-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 16px;
+  margin-top: 12px;
+  border-top: 1px solid rgba(var(--accent-rgb), 0.08);
+}
+
+.save-indicator {
+  font-family: var(--font-mono);
+  font-size: 0.45rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0.5;
+  flex: 1;
+}
+
+.save-indicator.saved {
+  color: #4dff88;
+  opacity: 0.8;
+  animation: save-flash 1.5s ease forwards;
+}
+
+@keyframes save-flash {
+  0%   { opacity: 1; }
+  100% { opacity: 0.4; }
+}
+
+.save-btn {
+  font-family: var(--font-mono);
+  font-size: 0.45rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid rgba(var(--accent-rgb), 0.15);
+  padding: 6px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.save-btn:hover {
+  border-color: var(--accent-1);
+  color: var(--accent-1);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15);
+}
