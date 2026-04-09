@@ -15,7 +15,7 @@ const AVATAR_CONFIG = {
     emoji: "\u{1F54A}\uFE0F",
     theme: "theme-angel",
     karmaPos: 0.92,
-    video: "../avatar/angeHeureux.mp4",
+    video: "avatar/angeHeureux.mp4",
     loadingTexts: [
       "La lumiere divine murmure...",
       "Les ailes se deploient...",
@@ -47,7 +47,7 @@ stat_effects: valeurs entre -20 et +20 pour chaque stat.`
     emoji: "\u2696\uFE0F",
     theme: "theme-neutral",
     karmaPos: 0.5,
-    video: "../avatar/angeNeutre.mp4",
+    video: "avatar/angeNeutre.mp4",
     loadingTexts: [
       "Calcul des probabilites...",
       "Analyse des variables...",
@@ -78,7 +78,7 @@ stat_effects: valeurs entre -15 et +15 pour chaque stat.`
     emoji: "\u{1FA78}",
     theme: "theme-fallen",
     karmaPos: 0.2,
-    video: "../avatar/angeDechu.mp4",
+    video: "avatar/angeDechu.mp4",
     loadingTexts: [
       "Les cendres se levent...",
       "La chute s'accelere...",
@@ -109,7 +109,7 @@ stat_effects: valeurs entre -25 et +10 pour chaque stat. La sante et moralite de
     emoji: "\u{1F525}",
     theme: "theme-devil",
     karmaPos: 0.05,
-    video: "../avatar/diable.mp4",
+    video: "avatar/diable.mp4",
     loadingTexts: [
       "L'enfer se dechaine...",
       "Les flammes rugissent...",
