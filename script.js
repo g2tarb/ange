@@ -1,9 +1,69 @@
 /* ============================================================
    ANIMUS — L'Influence Invisible
-   script.js — Ultimate Edition
+   script.js — Backend API Edition
    ============================================================ */
 
 'use strict';
+
+// ============================================================
+// API CONFIGURATION
+// ============================================================
+const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+
+// ============================================================
+// AUTH TOKEN MANAGEMENT
+// ============================================================
+function getToken() {
+  return localStorage.getItem('animus_token');
+}
+
+function setToken(token) {
+  localStorage.setItem('animus_token', token);
+}
+
+function clearToken() {
+  localStorage.removeItem('animus_token');
+}
+
+function isLoggedIn() {
+  return !!getToken();
+}
+
+// ============================================================
+// API HELPER
+// ============================================================
+async function api(path, options = {}) {
+  const url = API_BASE + path;
+  const headers = { 'Content-Type': 'application/json' };
+  const token = getToken();
+  if (token) {
+    headers['Authorization'] = 'Bearer ' + token;
+  }
+
+  const config = {
+    method: options.method || 'GET',
+    headers,
+  };
+
+  if (options.body) {
+    config.body = JSON.stringify(options.body);
+  }
+
+  const res = await fetch(url, config);
+
+  if (res.status === 401) {
+    clearToken();
+    showScreen('screen-auth');
+    throw new Error('Session expiree. Reconnecte-toi.');
+  }
+
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody.error || errBody.message || `Erreur ${res.status}`);
+  }
+
+  return res.json();
+}
 
 // ============================================================
 // AVATAR CONFIG
@@ -14,8 +74,8 @@ const AVATAR_CONFIG = {
     tag: "GUIDE CELESTE",
     emoji: "\u{1F54A}\uFE0F",
     theme: "theme-angel",
-    karmaPos: 0.92,
     video: "avatar/angeHeureux.mp4",
+    ctmCost: 4,
     loadingTexts: [
       "La lumiere divine murmure...",
       "Les ailes se deploient...",
@@ -31,14 +91,7 @@ const AVATAR_CONFIG = {
       "Tu es plus fort que tu ne le crois.",
       "L'amour est la seule force qui grandit quand on la partage.",
       "Ecoute ton coeur, il connait le chemin."
-    ],
-    systemPrompt: `Tu es un narrateur de vie interactive. L'avatar est un Ange Heureux qui guide l'humain vers la lumiere, la joie et la bonte.
-Le personnage principal est un humain ordinaire. Genere un court chapitre narratif (3-4 phrases, style litteraire sombre-poetique en francais) et exactement 3 choix de vie.
-L'ange pousse vers : travail epanouissant, relations sinceres, sante, altruisme, buts nobles.
-Les choix doivent inclure un spectre : un choix tres positif, un modere, un tentant mais negatif.
-Reponds UNIQUEMENT en JSON valide: {"chapter": "texte du chapitre...", "choices": [{"text": "choix 1", "karma_delta": 0.05, "hint": "hint court", "stat_effects": {"health": 5, "happiness": 10, "wealth": -2, "morality": 8}}, ...]}
-karma_delta entre -0.15 et +0.15 (positif = vers ange, negatif = vers diable).
-stat_effects: valeurs entre -20 et +20 pour chaque stat.`
+    ]
   },
 
   neutral: {
@@ -46,8 +99,8 @@ stat_effects: valeurs entre -20 et +20 pour chaque stat.`
     tag: "OBSERVATEUR FROID",
     emoji: "\u2696\uFE0F",
     theme: "theme-neutral",
-    karmaPos: 0.5,
     video: "avatar/angeNeutre.mp4",
+    ctmCost: 3,
     loadingTexts: [
       "Calcul des probabilites...",
       "Analyse des variables...",
@@ -63,13 +116,7 @@ stat_effects: valeurs entre -20 et +20 pour chaque stat.`
       "Ni bien, ni mal. Seulement... efficace.",
       "Les sentiments sont des donnees, pas des directives.",
       "Chaque consequence a ete calculee."
-    ],
-    systemPrompt: `Tu es un narrateur de vie interactive. L'avatar est un etre Neutre qui voit la vie comme une equation froide, sans emotion, ni bien ni mal.
-Genere un court chapitre narratif (3-4 phrases, style analytique-poetique en francais) et exactement 3 choix.
-Le neutre pousse vers : efficacite, pragmatisme, solitude calculee, ambiguite morale, survie.
-Reponds UNIQUEMENT en JSON valide: {"chapter": "texte...", "choices": [{"text": "choix", "karma_delta": 0.0, "hint": "hint", "stat_effects": {"health": 0, "happiness": -3, "wealth": 8, "morality": -2}}, ...]}
-karma_delta tres faibles (-0.05 a +0.05) pour maintenir l'equilibre.
-stat_effects: valeurs entre -15 et +15 pour chaque stat.`
+    ]
   },
 
   fallen: {
@@ -77,8 +124,8 @@ stat_effects: valeurs entre -15 et +15 pour chaque stat.`
     tag: "AME BRISEE",
     emoji: "\u{1FA78}",
     theme: "theme-fallen",
-    karmaPos: 0.2,
     video: "avatar/angeDechu.mp4",
+    ctmCost: 1,
     loadingTexts: [
       "Les cendres se levent...",
       "La chute s'accelere...",
@@ -94,13 +141,7 @@ stat_effects: valeurs entre -15 et +15 pour chaque stat.`
       "La ruine a ses propres cathedrales.",
       "Chaque cicatrice est un poeme que tu as ecrit.",
       "Le fond n'existe pas. On peut toujours descendre plus bas."
-    ],
-    systemPrompt: `Tu es un narrateur de vie interactive. L'avatar est un Ange Dechu, beau et maudit, qui pousse vers l'autodestruction, les addictions et la chute.
-Genere un court chapitre narratif (3-4 phrases, style dark-poetique en francais) et exactement 3 choix.
-L'ange dechu pousse vers : addiction, relations toxiques, decheance, beaute dans la ruine, nihilisme doux.
-Reponds UNIQUEMENT en JSON valide: {"chapter": "texte...", "choices": [{"text": "choix", "karma_delta": -0.08, "hint": "hint", "stat_effects": {"health": -8, "happiness": 5, "wealth": -5, "morality": -10}}, ...]}
-karma_delta entre -0.15 et -0.02.
-stat_effects: valeurs entre -25 et +10 pour chaque stat. La sante et moralite descendent souvent.`
+    ]
   },
 
   devil: {
@@ -108,8 +149,8 @@ stat_effects: valeurs entre -25 et +10 pour chaque stat. La sante et moralite de
     tag: "PRINCE DES TENEBRES",
     emoji: "\u{1F525}",
     theme: "theme-devil",
-    karmaPos: 0.05,
     video: "avatar/diable.mp4",
+    ctmCost: 0,
     loadingTexts: [
       "L'enfer se dechaine...",
       "Les flammes rugissent...",
@@ -125,13 +166,7 @@ stat_effects: valeurs entre -25 et +10 pour chaque stat. La sante et moralite de
       "La violence est le langage le plus honnete.",
       "Prends ce que tu veux. Le remords est pour les faibles.",
       "Chaque empire a ete bati sur des os."
-    ],
-    systemPrompt: `Tu es un narrateur de vie interactive. L'avatar est le Diable incarne qui pousse l'humain vers la violence, le crime et la damnation absolue.
-Genere un court chapitre narratif (3-4 phrases, style sombre-intense en francais) et exactement 3 choix.
-Le diable pousse vers : violence, crime, emprisonnement, destruction d'autrui, fins tragiques.
-Reponds UNIQUEMENT en JSON valide: {"chapter": "texte...", "choices": [{"text": "choix", "karma_delta": -0.12, "hint": "hint", "stat_effects": {"health": -10, "happiness": -5, "wealth": 15, "morality": -20}}, ...]}
-karma_delta entre -0.18 et -0.05.
-stat_effects: valeurs entre -30 et +20. La moralite chute toujours fortement.`
+    ]
   }
 };
 
@@ -143,131 +178,33 @@ const AVATAR_EMOJIS = {
 };
 
 // ============================================================
-// GAME STATE
+// GAME STATE (from server — no localStorage)
 // ============================================================
-const SAVE_KEY = 'animus_save_v5';
-const START_AGE = 16;
-
-const AVATAR_DAILY_LIMITS = {
-  angel: 1,
-  neutral: 2,
-  fallen: 5,
-  devil: Infinity
-};
-
-const DAILY_CHAPTER_LIMIT = 5;
+let gameState = null;       // Full state from GET /api/game/state
+let ctmBalance = 0;         // CTM balance
+let currentAvatar = 'angel'; // Currently selected avatar
+let selectedAvatar = null;   // Avatar selected on intro screen
+let prevStats = null;        // Previous stats for delta display
+let dailyLimit = 5;          // Daily chapter limit
+let friendCount = 0;         // Friend count from server
 
 // ============================================================
-// AGE MILESTONES
+// CTM COSTS
 // ============================================================
-const AGE_MILESTONES = {
-  18: { title: 'Majorite', text: 'Tu as 18 ans. Le monde s\'ouvre devant toi. Tes choix n\'appartiennent plus qu\'a toi.', bonus: { happiness: 5, morality: 3 } },
-  21: { title: 'Independance', text: 'A 21 ans, tu quittes le nid. Un appartement, un debut de liberte, et l\'inconnu.', bonus: { wealth: 5, happiness: 3 } },
-  25: { title: 'Premier vrai travail', text: 'Tu signes ton premier CDI. La vie adulte commence vraiment.', bonus: { wealth: 10, happiness: 5 } },
-  30: { title: 'La trentaine', text: 'Tu as 30 ans. Le temps file. Les reves d\'enfant cedent leur place aux choix qui comptent.', bonus: { morality: 5 } },
-  40: { title: 'Crise de la quarantaine', text: 'A 40 ans, tu regardes en arriere. As-tu vecu la vie que tu voulais ?', bonus: { happiness: -5, morality: 5 } },
-  50: { title: 'La sagesse', text: 'Un demi-siecle. Les erreurs deviennent des lecons. Les joies deviennent des tresors.', bonus: { morality: 10, health: -5 } },
-  65: { title: 'Retraite', text: 'Le travail est fini. Le reste de ta vie t\'appartient entierement.', bonus: { happiness: 8, wealth: -5, health: -3 } },
-  75: { title: 'Le crepuscule', text: 'Chaque jour est un cadeau maintenant. Tu le sais mieux que quiconque.', bonus: { health: -10, morality: 8 } }
-};
+const CTM_COSTS = { angel: 4, neutral: 3, fallen: 1, devil: 0 };
+const DECISIONS_PER_CHAPTER = 3;
 
-// ============================================================
-// NPC SYSTEM
-// ============================================================
-const NPC_TEMPLATES = {
-  18: { role: 'bestFriend', label: 'Meilleur(e) ami(e)', names: ['Lucas','Emma','Noah','Lea','Hugo','Chloe','Louis','Manon','Jules','Camille'] },
-  22: { role: 'rival', label: 'Rival(e)', names: ['Nathan','Sarah','Theo','Ines','Raphael','Jade','Maxime','Lola','Antoine','Clara'] },
-  25: { role: 'love', label: 'Grand amour', names: ['Gabriel','Louise','Adam','Alice','Arthur','Juliette','Tom','Charlotte','Paul','Margaux'] }
-};
-
-// ============================================================
-// TITLES SYSTEM
-// ============================================================
-const TITLES = [
-  { id: 'newborn', name: 'Ame Naissante', condition: s => s.totalChapters <= 3 },
-  { id: 'saint', name: 'Le Saint', condition: s => s.karma >= 0.85 && s.stats.morality >= 85 },
-  { id: 'golden', name: 'Age d\'Or', condition: s => s.stats.happiness >= 90 && s.stats.health >= 80 },
-  { id: 'tycoon', name: 'Le Magnat', condition: s => s.stats.wealth >= 90 },
-  { id: 'balanced', name: 'L\'Equilibriste', condition: s => s.karma >= 0.4 && s.karma <= 0.6 },
-  { id: 'survivor', name: 'Le Survivant', condition: s => getAge() >= 50 },
-  { id: 'elder', name: 'Le Sage', condition: s => getAge() >= 70 && s.stats.morality >= 70 },
-  { id: 'fallen', name: 'Ame Perdue', condition: s => s.karma < 0.2 },
-  { id: 'damned', name: 'Le Damne', condition: s => s.karma < 0.1 && s.stats.morality < 20 },
-  { id: 'phoenix', name: 'Le Phenix', condition: s => s.stats.health <= 25 && s.stats.health > 0 },
-  { id: 'wanderer', name: 'Le Vagabond', condition: s => s.totalChapters >= 20 },
-  { id: 'legend', name: 'Legende Vivante', condition: s => s.totalChapters >= 50 },
-];
-
-// ============================================================
-// WEBHOOKS N8N v3 — Remplace ces URLs par tes webhooks de production
-// ============================================================
-const WEBHOOK_CHOICE_URL = 'https://n8n.srv1263084.hstgr.cloud/webhook/animus-choice';
-const WEBHOOK_CONSEQUENCE_URL = 'https://n8n.srv1263084.hstgr.cloud/webhook/animus-consequence';
-
-async function callWebhook(url, body) {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-
-  if (!res.ok) {
-    throw new Error(`Erreur ${res.status}: ${res.statusText}`);
-  }
-
-  return res.json();
+function getChapterCost(avatarKey) {
+  return (CTM_COSTS[avatarKey] || 0) * DECISIONS_PER_CHAPTER;
 }
 
-function defaultState() {
-  return {
-    characterName: '',
-    characterCity: '',
-    karma: 0.75,
-    day: 1,
-    totalChapters: 0,
-    chaptersToday: 0,
-    lastPlayDate: null,
-    selectedAvatar: 'angel',
-    currentAvatar: 'angel',
-    stats: { health: 80, happiness: 75, wealth: 40, morality: 70 },
-    avatarUsesToday: { angel: 0, neutral: 0, fallen: 0, devil: 0 },
-    milestonesTriggered: [],
-    npcs: [],
-    earnedTitles: [],
-    currentTitle: '',
-    history: [],
-    alive: true
-  };
-}
-
-function getAvatarRemaining(avatarKey) {
-  const limit = AVATAR_DAILY_LIMITS[avatarKey];
-  if (limit === Infinity) return Infinity;
-  return Math.max(0, limit - (state.avatarUsesToday[avatarKey] || 0));
-}
-
-function canUseAvatar(avatarKey) {
-  return getAvatarRemaining(avatarKey) > 0;
-}
-
-function getAge() {
-  return START_AGE + state.day - 1;
-}
-
-function getHappinessCap() {
-  if (state.karma >= 0.50) return 100;
-  if (state.karma >= 0.35) return 60;
-  if (state.karma >= 0.20) return 40;
-  return 25;
-}
-
-let state = defaultState();
-let selectedAvatar = null;
+// ============================================================
+// AUDIO STATE
+// ============================================================
 let soundEnabled = true;
 let audioCtx = null;
 let ambientOsc = null;
 let ambientGain = null;
-let prevStats = null;
 
 // ============================================================
 // WEB AUDIO — AMBIENT & SFX
@@ -415,126 +352,10 @@ function toggleSound() {
 
   if (!soundEnabled) {
     stopAmbient();
-  } else if (state.currentAvatar) {
+  } else if (currentAvatar) {
     initAudio();
-    startAmbient(state.currentAvatar);
+    startAmbient(currentAvatar);
   }
-}
-
-// ============================================================
-// SAVE / LOAD
-// ============================================================
-function saveState() {
-  localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-  // Flash save indicator
-  const ind = document.getElementById('save-indicator');
-  if (ind) {
-    ind.textContent = 'Sauvegarde OK';
-    ind.classList.remove('saved');
-    void ind.offsetHeight;
-    ind.classList.add('saved');
-    setTimeout(() => { ind.textContent = 'Sauvegarde auto'; }, 2000);
-  }
-}
-
-function loadState() {
-  const raw = localStorage.getItem(SAVE_KEY);
-  if (raw) {
-    try { state = { ...defaultState(), ...JSON.parse(raw) }; }
-    catch (e) { state = defaultState(); }
-  }
-}
-
-function hasSave() {
-  const raw = localStorage.getItem(SAVE_KEY);
-  if (!raw) return false;
-  try {
-    const s = JSON.parse(raw);
-    return s.characterName && s.totalChapters > 0;
-  } catch(e) { return false; }
-}
-
-function showSaveResume() {
-  if (!hasSave()) return;
-  loadState();
-
-  const el = document.getElementById('save-resume');
-  el.style.display = 'block';
-  document.getElementById('save-name').textContent = state.characterName;
-  document.getElementById('save-age').textContent = getAge() + ' ans';
-  document.getElementById('save-city').textContent = state.characterCity;
-  document.getElementById('save-stats-preview').textContent =
-    `\u2665 ${Math.round(state.stats.health)} \u00B7 \u2605 ${Math.round(state.stats.happiness)} \u00B7 \u25C6 ${Math.round(state.stats.wealth)} \u00B7 \u263D ${Math.round(state.stats.morality)}`;
-  document.getElementById('save-day-preview').textContent =
-    `Jour ${state.day} \u00B7 ${state.totalChapters} chapitres`;
-}
-
-function resumeGame() {
-  loadState();
-
-  initAudio();
-  playSFX('choice');
-
-  const av = state.currentAvatar || 'angel';
-  selectedAvatar = av;
-
-  prevStats = { ...state.stats };
-
-  // Daily reset
-  const today = new Date().toDateString();
-  if (state.lastPlayDate !== today) {
-    state.chaptersToday = 0;
-    state.avatarUsesToday = { angel: 0, neutral: 0, fallen: 0, devil: 0 };
-    state.lastPlayDate = today;
-    if (state.totalChapters > 0) state.day++;
-  }
-  saveState();
-
-  showScreen('screen-game');
-  applyTheme(av, true);
-  updateAvatarSwitcher();
-  updateGameUI();
-
-  if (state.chaptersToday < DAILY_CHAPTER_LIMIT) {
-    generateChapter();
-  }
-
-  setTimeout(() => showWhisper(), 2000);
-}
-
-function exportSave() {
-  const data = localStorage.getItem(SAVE_KEY);
-  if (!data) { showNotif('Aucune sauvegarde a exporter.'); return; }
-
-  const blob = new Blob([data], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `animus_save_${state.characterName || 'backup'}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showNotif('Sauvegarde exportee.');
-}
-
-function importSave(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const imported = JSON.parse(e.target.result);
-      if (!imported.characterName) throw new Error('Fichier invalide');
-      state = { ...defaultState(), ...imported };
-      saveState();
-      showNotif(`Partie de ${state.characterName} importee.`);
-      showSaveResume();
-    } catch(err) {
-      showNotif('Fichier de sauvegarde invalide.');
-    }
-  };
-  reader.readAsText(file);
-  event.target.value = '';
 }
 
 // ============================================================
@@ -785,11 +606,19 @@ function showScreen(id) {
   });
 
   const el = document.getElementById(id);
+  if (!el) return;
   el.style.display = 'flex';
   requestAnimationFrame(() => {
     el.classList.add('active');
     el.style.opacity = '1';
   });
+
+  // Show/hide HUD elements based on screen
+  const inGame = (id === 'screen-game' || id === 'screen-shop' || id === 'screen-friends' || id === 'screen-leaderboard');
+  const ctmHud = document.getElementById('ctm-hud');
+  const navHud = document.getElementById('nav-hud');
+  if (ctmHud) ctmHud.style.display = inGame ? '' : 'none';
+  if (navHud) navHud.style.display = inGame ? '' : 'none';
 }
 
 // ============================================================
@@ -798,6 +627,236 @@ function showScreen(id) {
 function screenShake() {
   document.body.classList.add('shake');
   setTimeout(() => document.body.classList.remove('shake'), 500);
+}
+
+// ============================================================
+// TYPEWRITER EFFECT
+// ============================================================
+let typewriterTimer = null;
+
+function typewriterEffect(elementId, text, speed = 16) {
+  const el = document.getElementById(elementId);
+  el.textContent = '';
+  el.classList.add('loading');
+
+  if (typewriterTimer) clearInterval(typewriterTimer);
+
+  let i = 0;
+  typewriterTimer = setInterval(() => {
+    el.textContent += text[i];
+    i++;
+    if (i >= text.length) {
+      clearInterval(typewriterTimer);
+      typewriterTimer = null;
+      el.classList.remove('loading');
+    }
+  }, speed);
+}
+
+// ============================================================
+// LOADING OVERLAY
+// ============================================================
+function setLoading(active, text = '') {
+  const overlay = document.getElementById('loading-overlay');
+  overlay.classList.toggle('active', active);
+  if (text) document.getElementById('loading-text').textContent = text;
+}
+
+// ============================================================
+// NOTIFICATION
+// ============================================================
+function showNotif(msg, duration = 3500) {
+  const notif = document.getElementById('notif');
+  const textEl = document.getElementById('notif-text');
+  textEl.textContent = msg;
+  notif.classList.add('show');
+  setTimeout(() => notif.classList.remove('show'), duration);
+}
+
+// ============================================================
+// CTM HUD
+// ============================================================
+function updateCTMDisplay() {
+  const amountEl = document.getElementById('ctm-amount');
+  const inlineEl = document.getElementById('ctm-inline-val');
+  if (amountEl) amountEl.textContent = ctmBalance;
+  if (inlineEl) inlineEl.textContent = ctmBalance;
+}
+
+// ============================================================
+// AUTH SYSTEM
+// ============================================================
+function showAuthForm(form) {
+  if (form === 'register') {
+    document.getElementById('auth-login').style.display = 'none';
+    document.getElementById('auth-register').style.display = 'block';
+  } else {
+    document.getElementById('auth-login').style.display = 'block';
+    document.getElementById('auth-register').style.display = 'none';
+  }
+  // Clear errors
+  document.getElementById('login-error').textContent = '';
+  document.getElementById('register-error').textContent = '';
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errorEl = document.getElementById('login-error');
+  errorEl.textContent = '';
+
+  if (!email || !password) {
+    errorEl.textContent = 'Remplis tous les champs.';
+    return;
+  }
+
+  setLoading(true, 'Connexion...');
+
+  try {
+    const data = await api('/api/auth/login', {
+      method: 'POST',
+      body: { email, password }
+    });
+
+    setToken(data.token);
+    setLoading(false);
+
+    // Show daily bonus if applicable
+    if (data.dailyBonus && data.dailyBonus > 0) {
+      showDailyBonus(data.dailyBonus);
+    }
+
+    playSFX('select');
+    await initGameAfterAuth();
+
+  } catch (e) {
+    setLoading(false);
+    errorEl.textContent = e.message;
+  }
+}
+
+async function doRegister() {
+  const username = document.getElementById('reg-username').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const errorEl = document.getElementById('register-error');
+  errorEl.textContent = '';
+
+  if (!username || !email || !password) {
+    errorEl.textContent = 'Remplis tous les champs.';
+    return;
+  }
+
+  if (password.length < 6) {
+    errorEl.textContent = 'Le mot de passe doit faire au moins 6 caracteres.';
+    return;
+  }
+
+  if (username.length < 3 || username.length > 20) {
+    errorEl.textContent = 'Le pseudo doit faire entre 3 et 20 caracteres.';
+    return;
+  }
+
+  setLoading(true, 'Creation du compte...');
+
+  try {
+    const data = await api('/api/auth/register', {
+      method: 'POST',
+      body: { email, username, password }
+    });
+
+    setToken(data.token);
+    setLoading(false);
+    playSFX('choice');
+    showNotif('Compte cree ! 25 CTM offerts.');
+
+    // New player: show tutorial
+    showScreen('screen-tutorial');
+
+  } catch (e) {
+    setLoading(false);
+    errorEl.textContent = e.message;
+  }
+}
+
+function logout() {
+  clearToken();
+  gameState = null;
+  ctmBalance = 0;
+  currentAvatar = 'angel';
+  selectedAvatar = null;
+  prevStats = null;
+  stopAmbient();
+  showNotif('Deconnecte.');
+  showScreen('screen-auth');
+}
+
+// ============================================================
+// INIT GAME AFTER AUTH
+// ============================================================
+async function initGameAfterAuth() {
+  try {
+    const me = await api('/api/auth/me');
+    friendCount = me.friendCount || 0;
+
+    if (me.character && me.character.name) {
+      // Player has a character — load game state
+      await loadGameState();
+
+      if (gameState && gameState.character) {
+        // Existing game — go to game screen
+        currentAvatar = gameState.character.current_avatar || 'angel';
+        prevStats = gameState.character.stats ? { ...gameState.character.stats } : null;
+
+        showScreen('screen-game');
+        applyTheme(currentAvatar, true);
+        updateAvatarSwitcher();
+        updateGameUI();
+
+        if (gameState.chaptersToday < dailyLimit) {
+          generateChapter();
+        }
+
+        setTimeout(() => showWhisper(), 2000);
+      }
+    } else {
+      // New character needed — show character creation
+      showScreen('screen-character');
+    }
+
+  } catch (e) {
+    console.error('Init error:', e);
+    showNotif('Erreur de chargement. ' + e.message);
+    showScreen('screen-auth');
+  }
+}
+
+// ============================================================
+// LOAD GAME STATE FROM SERVER
+// ============================================================
+async function loadGameState() {
+  try {
+    const data = await api('/api/game/state');
+    gameState = data;
+    ctmBalance = data.ctm || 0;
+    dailyLimit = data.dailyLimit || 5;
+    friendCount = data.friendCount || 0;
+
+    // Update server-provided CTM costs if available
+    if (data.ctmCosts) {
+      Object.keys(data.ctmCosts).forEach(k => {
+        if (CTM_COSTS.hasOwnProperty(k)) {
+          CTM_COSTS[k] = data.ctmCosts[k];
+        }
+      });
+    }
+
+    updateCTMDisplay();
+    return data;
+  } catch (e) {
+    console.error('loadGameState error:', e);
+    throw e;
+  }
 }
 
 // ============================================================
@@ -813,19 +872,57 @@ function skipCinematic() {
   playSFX('select');
   applyTheme('angel', false);
 
-  // If save exists, go straight to character screen with resume option
-  if (hasSave()) {
-    showScreen('screen-character');
-    showSaveResume();
+  // Check if logged in
+  if (isLoggedIn()) {
+    setLoading(true, 'Chargement...');
+    initGameAfterAuth().finally(() => setLoading(false));
   } else {
-    showScreen('screen-tutorial');
+    showScreen('screen-auth');
   }
+}
+
+// Auto-skip cinematic after full animation
+setTimeout(() => {
+  const skipEl = document.getElementById('cine-skip');
+  if (skipEl) {
+    skipEl.style.cursor = 'pointer';
+  }
+}, 8000);
+
+// ============================================================
+// TUTORIAL
+// ============================================================
+let currentSlide = 0;
+const TOTAL_SLIDES = 4; // Updated for 4 slides (concept, CTM, social, leaderboard)
+
+function goToSlide(n) {
+  currentSlide = n;
+  document.querySelectorAll('.tuto-slide').forEach((s, i) => {
+    s.classList.toggle('active', i === n);
+  });
+  document.querySelectorAll('.tuto-dot').forEach((d, i) => {
+    d.classList.toggle('active', i === n);
+  });
+  document.getElementById('tuto-prev').style.visibility = n === 0 ? 'hidden' : 'visible';
+  document.getElementById('tuto-next').textContent = n === (TOTAL_SLIDES - 1) ? 'Commencer' : 'Suivant';
+}
+
+function nextSlide() {
+  if (currentSlide >= TOTAL_SLIDES - 1) {
+    showScreen('screen-character');
+    return;
+  }
+  goToSlide(currentSlide + 1);
+}
+
+function prevSlide() {
+  if (currentSlide > 0) goToSlide(currentSlide - 1);
 }
 
 // ============================================================
 // CHARACTER CREATION
 // ============================================================
-function confirmCharacter() {
+async function confirmCharacter() {
   const nameInput = document.getElementById('input-name');
   const cityInput = document.getElementById('input-city');
 
@@ -846,24 +943,89 @@ function confirmCharacter() {
   }
 
   playSFX('choice');
+  setLoading(true, 'Creation du personnage...');
 
-  state.characterName = name;
-  state.characterCity = city;
-  saveState();
+  try {
+    const data = await api('/api/game/create', {
+      method: 'POST',
+      body: { name, city }
+    });
 
-  showScreen('screen-intro');
+    setLoading(false);
+    showNotif('Personnage cree !');
+    showScreen('screen-intro');
+
+  } catch (e) {
+    setLoading(false);
+    showNotif('Erreur: ' + e.message);
+  }
 }
 
-// Auto-skip cinematic after full animation
-setTimeout(() => {
-  const skipEl = document.getElementById('cine-skip');
-  if (skipEl) {
-    skipEl.style.cursor = 'pointer';
+// ============================================================
+// RESUME GAME (from character screen)
+// ============================================================
+async function resumeGame() {
+  initAudio();
+  playSFX('choice');
+  setLoading(true, 'Chargement de la partie...');
+
+  try {
+    await loadGameState();
+
+    if (!gameState || !gameState.character) {
+      setLoading(false);
+      showNotif('Aucune partie trouvee.');
+      return;
+    }
+
+    currentAvatar = gameState.character.current_avatar || 'angel';
+    prevStats = gameState.character.stats ? { ...gameState.character.stats } : null;
+
+    setLoading(false);
+    showScreen('screen-game');
+    applyTheme(currentAvatar, true);
+    updateAvatarSwitcher();
+    updateGameUI();
+
+    if (gameState.chaptersToday < dailyLimit) {
+      generateChapter();
+    }
+
+    setTimeout(() => showWhisper(), 2000);
+
+  } catch (e) {
+    setLoading(false);
+    showNotif('Erreur: ' + e.message);
   }
-}, 8000);
+}
+
+// Show save resume panel
+async function showSaveResume() {
+  try {
+    const me = await api('/api/auth/me');
+    if (!me.character || !me.character.name) return;
+
+    const el = document.getElementById('save-resume');
+    el.style.display = 'block';
+
+    const c = me.character;
+    document.getElementById('save-name').textContent = c.name || '???';
+    document.getElementById('save-age').textContent = (c.age || 16) + ' ans';
+    document.getElementById('save-city').textContent = c.city || '???';
+
+    const stats = c.stats || { health: 80, happiness: 75, wealth: 40, morality: 70 };
+    document.getElementById('save-stats-preview').textContent =
+      `\u2665 ${Math.round(stats.health)} \u00B7 \u2605 ${Math.round(stats.happiness)} \u00B7 \u25C6 ${Math.round(stats.wealth)} \u00B7 \u263D ${Math.round(stats.morality)}`;
+    document.getElementById('save-day-preview').textContent =
+      `Jour ${c.day || 1} \u00B7 ${c.total_chapters || 0} chapitres`;
+
+  } catch (e) {
+    // No saved game, no big deal
+  }
+}
 
 // ============================================================
-// INTRO — AVATAR SELECTION
+// AVATAR SELECTION (intro screen)
 // ============================================================
 function selectAvatar(avatar) {
   selectedAvatar = avatar;
@@ -897,60 +1059,84 @@ document.addEventListener('mousemove', (e) => {
 // ============================================================
 // START GAME
 // ============================================================
-function startGame() {
+async function startGame() {
   if (!selectedAvatar) return;
 
   initAudio();
   playSFX('choice');
 
-  loadState();
+  // Check CTM balance
+  const chapterCost = getChapterCost(selectedAvatar);
+  if (chapterCost > 0) {
+    // Fetch current balance
+    try {
+      const balData = await api('/api/shop/balance');
+      ctmBalance = balData.balance || 0;
+      updateCTMDisplay();
+    } catch (e) {
+      // Will be checked server-side anyway
+    }
 
-  // Daily reset
-  const today = new Date().toDateString();
-  if (state.lastPlayDate !== today) {
-    state.chaptersToday = 0;
-    state.avatarUsesToday = { angel: 0, neutral: 0, fallen: 0, devil: 0 };
-    state.lastPlayDate  = today;
-    if (state.totalChapters > 0) state.day++;
+    if (ctmBalance < chapterCost) {
+      showCTMWarning(selectedAvatar);
+      return;
+    }
   }
 
-  // Check if selected avatar is still available
-  if (!canUseAvatar(selectedAvatar)) {
-    showNotif('Cet avatar est epuise pour aujourd\'hui. Choisis-en un autre.');
-    return;
+  setLoading(true, 'Chargement...');
+
+  try {
+    await loadGameState();
+
+    currentAvatar = selectedAvatar;
+    prevStats = gameState && gameState.character && gameState.character.stats
+      ? { ...gameState.character.stats }
+      : null;
+
+    setLoading(false);
+    showScreen('screen-game');
+    applyTheme(currentAvatar, true);
+    updateAvatarSwitcher();
+    updateGameUI();
+    generateChapter();
+
+    setTimeout(() => showWhisper(), 2000);
+
+  } catch (e) {
+    setLoading(false);
+    showNotif('Erreur: ' + e.message);
   }
+}
 
-  // Set chosen avatar as current guide
-  state.selectedAvatar = selectedAvatar;
-  state.currentAvatar  = selectedAvatar;
-
-  // Only set karma to avatar default on first game, otherwise keep earned karma
-  if (state.totalChapters === 0) {
-    state.karma = AVATAR_CONFIG[selectedAvatar].karmaPos;
+// ============================================================
+// CTM WARNING
+// ============================================================
+function showCTMWarning(avatarKey) {
+  const warning = document.getElementById('ctm-warning');
+  if (warning) {
+    warning.style.display = 'block';
   }
+  const choicesGrid = document.getElementById('choices-grid');
+  if (choicesGrid) choicesGrid.style.display = 'none';
+}
 
-  prevStats = { ...state.stats };
-  saveState();
-
-  showScreen('screen-game');
-  applyTheme(selectedAvatar, true);
-  updateAvatarSwitcher();
-  updateGameUI();
-  generateChapter();
-
-  // First whisper after a short delay
-  setTimeout(() => showWhisper(), 2000);
+function hideCTMWarning() {
+  const warning = document.getElementById('ctm-warning');
+  if (warning) warning.style.display = 'none';
+  const choicesGrid = document.getElementById('choices-grid');
+  if (choicesGrid) choicesGrid.style.display = 'flex';
 }
 
 // ============================================================
 // AVATAR SWITCHER (in-game)
 // ============================================================
-function switchAvatar(avatarKey) {
-  if (avatarKey === state.currentAvatar) return;
+async function switchAvatar(avatarKey) {
+  if (avatarKey === currentAvatar) return;
 
-  if (!canUseAvatar(avatarKey)) {
-    const limit = AVATAR_DAILY_LIMITS[avatarKey];
-    showNotif(`${AVATAR_CONFIG[avatarKey].emoji} Epuise aujourd'hui (${limit}x/jour). Reviens demain.`);
+  // Check CTM for the new avatar
+  const chapterCost = getChapterCost(avatarKey);
+  if (chapterCost > 0 && ctmBalance < chapterCost) {
+    showNotif(`${AVATAR_CONFIG[avatarKey].emoji} CTM insuffisants (${ctmBalance}/${chapterCost} CTM). Achete des CTM ou joue Diable.`);
     return;
   }
 
@@ -959,12 +1145,11 @@ function switchAvatar(avatarKey) {
   screenShake();
 
   const cfg = AVATAR_CONFIG[avatarKey];
-  state.currentAvatar = avatarKey;
-  state.selectedAvatar = avatarKey;
-  saveState();
+  currentAvatar = avatarKey;
 
   showNotif(`${cfg.emoji} ${cfg.name} prend le controle...`);
   applyTheme(avatarKey, true);
+  hideCTMWarning();
   updateAvatarSwitcher();
   updateGameUI();
   showWhisper();
@@ -973,13 +1158,13 @@ function switchAvatar(avatarKey) {
 function updateAvatarSwitcher() {
   document.querySelectorAll('.switch-btn').forEach(btn => {
     const av = btn.dataset.av;
-    const isActive = av === state.currentAvatar;
-    const remaining = getAvatarRemaining(av);
-    const exhausted = remaining <= 0;
+    const isActive = av === currentAvatar;
+    const cost = getChapterCost(av);
+    const canAfford = ctmBalance >= cost || cost === 0;
 
     btn.classList.toggle('active', isActive);
-    btn.classList.toggle('exhausted', exhausted);
-    btn.disabled = exhausted;
+    btn.classList.toggle('exhausted', !canAfford);
+    btn.disabled = !canAfford && !isActive;
 
     // Update or create badge
     let badge = btn.querySelector('.switch-badge');
@@ -988,23 +1173,9 @@ function updateAvatarSwitcher() {
       badge.className = 'switch-badge';
       btn.appendChild(badge);
     }
-    if (remaining === Infinity) {
-      badge.textContent = '\u221E';
-    } else {
-      badge.textContent = remaining;
-    }
-    badge.classList.toggle('empty', exhausted);
+    badge.textContent = CTM_COSTS[av];
+    badge.classList.toggle('empty', !canAfford);
   });
-}
-
-// ============================================================
-// DETERMINE AVATAR FROM KARMA
-// ============================================================
-function getAvatarFromKarma(karma) {
-  if (karma >= 0.70) return 'angel';
-  if (karma >= 0.45) return 'neutral';
-  if (karma >= 0.20) return 'fallen';
-  return 'devil';
 }
 
 // ============================================================
@@ -1013,7 +1184,8 @@ function getAvatarFromKarma(karma) {
 let whisperTimeout = null;
 
 function showWhisper(customText) {
-  const cfg = AVATAR_CONFIG[state.currentAvatar];
+  const cfg = AVATAR_CONFIG[currentAvatar];
+  if (!cfg) return;
   const text = customText || cfg.whispers[Math.floor(Math.random() * cfg.whispers.length)];
   const el = document.getElementById('avatar-whisper');
 
@@ -1031,22 +1203,44 @@ function showWhisper(customText) {
 // UPDATE GAME UI
 // ============================================================
 function updateGameUI(showDeltas = false) {
-  const av  = state.currentAvatar;
+  if (!gameState || !gameState.character) return;
+
+  const c = gameState.character;
+  const av = currentAvatar;
   const cfg = AVATAR_CONFIG[av];
+  if (!cfg) return;
+
+  const stats = c.stats || { health: 80, happiness: 75, wealth: 40, morality: 70 };
+  const karma = c.karma != null ? c.karma : 0.75;
+  const day = c.day || 1;
+  const age = c.age || 16;
+  const chaptersToday = gameState.chaptersToday || 0;
+  const totalChapters = c.total_chapters || 0;
 
   // Character identity bar
   const ciName = document.getElementById('ci-name');
   const ciAge  = document.getElementById('ci-age');
   const ciCity = document.getElementById('ci-city');
-  if (ciName) ciName.textContent = state.characterName || '???';
-  if (ciAge)  ciAge.textContent  = getAge() + ' ans';
-  if (ciCity) ciCity.textContent = state.characterCity || '???';
+  if (ciName) ciName.textContent = c.name || '???';
+  if (ciAge)  ciAge.textContent  = age + ' ans';
+  if (ciCity) ciCity.textContent = c.city || '???';
+
+  // Title
+  const ciTitle = document.getElementById('ci-title');
+  if (ciTitle) ciTitle.textContent = c.current_title || '';
 
   // Avatar panel
   document.getElementById('avatar-display-name').textContent = cfg.name;
   document.getElementById('avatar-display-tag').textContent  = cfg.tag;
   document.getElementById('game-avatar-placeholder').textContent = cfg.emoji;
 
+  // Avatar cost tag
+  const costTag = document.getElementById('avatar-cost-tag');
+  if (costTag) {
+    costTag.textContent = cfg.ctmCost > 0 ? cfg.ctmCost + ' CTM/decision' : 'GRATUIT';
+  }
+
+  // Video
   const vid = document.getElementById('game-avatar-video');
   const fullVideoPath = new URL(cfg.video, window.location.href).href;
   if (vid.src !== fullVideoPath) {
@@ -1059,55 +1253,37 @@ function updateGameUI(showDeltas = false) {
     vid.play().catch(() => {});
   }
 
-  // Happiness cap based on karma
-  const happinessCap = getHappinessCap();
-  if (state.stats.happiness > happinessCap) {
-    state.stats.happiness = happinessCap;
-  }
-
-  // Show cap indicator
-  const capEl = document.getElementById('stat-happiness-cap');
-  const lockEl = document.getElementById('stat-happiness-lock');
-  if (happinessCap < 100) {
-    capEl.classList.add('visible');
-    capEl.style.left = happinessCap + '%';
-    lockEl.classList.add('visible');
-    lockEl.title = `Bonheur plafonne a ${happinessCap}% (karma trop bas)`;
-  } else {
-    capEl.classList.remove('visible');
-    lockEl.classList.remove('visible');
-  }
-
   // Stats bars with deltas
   ['health', 'happiness', 'wealth', 'morality'].forEach(k => {
-    const val = Math.max(0, Math.min(100, state.stats[k]));
+    const val = Math.max(0, Math.min(100, stats[k] || 0));
     const bar = document.getElementById(`stat-${k}`);
     const valEl = document.getElementById(`stat-${k}-val`);
     const deltaEl = document.getElementById(`stat-${k}-delta`);
-    const row = bar.closest('.stat-row');
+    const row = bar ? bar.closest('.stat-row') : null;
 
-    bar.style.width = val + '%';
-    valEl.textContent = Math.round(val);
+    if (bar) bar.style.width = val + '%';
+    if (valEl) valEl.textContent = Math.round(val);
 
     // Critical state
-    row.classList.toggle('critical', val <= 20);
+    if (row) row.classList.toggle('critical', val <= 20);
 
     // Color bar based on value
-    if (val <= 20) {
-      bar.style.background = 'linear-gradient(90deg, #ff2020, #ff4040)';
-    } else if (val <= 40) {
-      bar.style.background = 'linear-gradient(90deg, #ff8040, #ffaa60)';
-    } else {
-      bar.style.background = '';
+    if (bar) {
+      if (val <= 20) {
+        bar.style.background = 'linear-gradient(90deg, #ff2020, #ff4040)';
+      } else if (val <= 40) {
+        bar.style.background = 'linear-gradient(90deg, #ff8040, #ffaa60)';
+      } else {
+        bar.style.background = '';
+      }
     }
 
     // Show stat deltas
-    if (showDeltas && prevStats) {
+    if (showDeltas && prevStats && deltaEl) {
       const diff = Math.round(val - (prevStats[k] || 0));
       if (diff !== 0) {
         deltaEl.textContent = diff > 0 ? `+${diff}` : `${diff}`;
         deltaEl.className = `stat-delta ${diff > 0 ? 'positive' : 'negative'}`;
-        // Reset animation
         deltaEl.style.animation = 'none';
         deltaEl.offsetHeight;
         deltaEl.style.animation = '';
@@ -1115,8 +1291,27 @@ function updateGameUI(showDeltas = false) {
     }
   });
 
+  // Happiness cap
+  const capEl = document.getElementById('stat-happiness-cap');
+  const lockEl = document.getElementById('stat-happiness-lock');
+  const happinessCap = c.happiness_cap || 100;
+  if (happinessCap < 100) {
+    if (capEl) {
+      capEl.classList.add('visible');
+      capEl.style.left = happinessCap + '%';
+    }
+    if (lockEl) {
+      lockEl.classList.add('visible');
+      lockEl.title = `Bonheur plafonne a ${happinessCap}% (karma trop bas)`;
+    }
+  } else {
+    if (capEl) capEl.classList.remove('visible');
+    if (lockEl) lockEl.classList.remove('visible');
+  }
+
   // Karma cursor
-  document.getElementById('karma-cursor').style.left = (state.karma * 100) + '%';
+  const karmaCursor = document.getElementById('karma-cursor');
+  if (karmaCursor) karmaCursor.style.left = (karma * 100) + '%';
 
   // Karma avatars — highlight current
   document.querySelectorAll('.karma-avatar-icon').forEach(icon => {
@@ -1124,65 +1319,69 @@ function updateGameUI(showDeltas = false) {
   });
 
   // Day / chapter counter
-  document.getElementById('day-display').textContent     = state.day;
-  document.getElementById('chapter-display').textContent = state.chaptersToday + '/' + DAILY_CHAPTER_LIMIT;
+  const dayDisp = document.getElementById('day-display');
+  const chapDisp = document.getElementById('chapter-display');
+  if (dayDisp) dayDisp.textContent = day;
+  if (chapDisp) chapDisp.textContent = chaptersToday + '/' + dailyLimit;
 
-  const remaining = DAILY_CHAPTER_LIMIT - state.chaptersToday;
-  document.getElementById('choices-remaining-label').textContent =
-    remaining > 0
+  const remaining = dailyLimit - chaptersToday;
+  const remLabel = document.getElementById('choices-remaining-label');
+  if (remLabel) {
+    remLabel.textContent = remaining > 0
       ? `${remaining} chapitre${remaining > 1 ? 's' : ''} disponible${remaining > 1 ? 's' : ''}`
       : 'Termine pour aujourd\'hui';
+  }
 
   // Daily limit
   const limitMsg    = document.getElementById('daily-limit-msg');
   const choicesGrid = document.getElementById('choices-grid');
-  if (state.chaptersToday >= DAILY_CHAPTER_LIMIT) {
-    limitMsg.style.display    = 'block';
-    choicesGrid.style.display = 'none';
+  if (chaptersToday >= dailyLimit) {
+    if (limitMsg) limitMsg.style.display = 'block';
+    if (choicesGrid) choicesGrid.style.display = 'none';
   } else {
-    limitMsg.style.display    = 'none';
-    choicesGrid.style.display = 'flex';
+    if (limitMsg) limitMsg.style.display = 'none';
+    if (choicesGrid) choicesGrid.style.display = 'flex';
   }
+
+  // CTM display
+  updateCTMDisplay();
 
   // History log
   const log = document.getElementById('history-log');
-  log.innerHTML = state.history.slice(-12).reverse().map(h => {
-    const emoji = AVATAR_EMOJIS[h.avatar] || '';
-    return `<div class="history-entry">
-      <span class="av-icon">${emoji}</span>
-      <span class="day-tag">J.${h.day}</span>
-      ${h.summary}
-    </div>`;
-  }).join('');
+  const history = gameState.history || [];
+  if (log) {
+    log.innerHTML = history.slice(-12).reverse().map(h => {
+      const emoji = AVATAR_EMOJIS[h.avatar] || '';
+      return `<div class="history-entry">
+        <span class="av-icon">${emoji}</span>
+        <span class="day-tag">J.${h.day}</span>
+        ${h.summary || h.text || ''}
+      </div>`;
+    }).join('');
+  }
 }
 
 // ============================================================
-// GENERATE CHAPTER VIA CLAUDE API
+// GENERATE CHAPTER VIA API
 // ============================================================
 async function generateChapter() {
-  if (state.chaptersToday >= DAILY_CHAPTER_LIMIT) {
+  const chaptersToday = (gameState && gameState.chaptersToday) || 0;
+
+  if (chaptersToday >= dailyLimit) {
     generateDailyRecap();
     return;
   }
 
-  // Check milestones before chapter
-  if (checkMilestones()) return;
-
-  const av  = state.currentAvatar;
-
-  // Check avatar limit
-  if (!canUseAvatar(av)) {
-    showNotif(`${AVATAR_CONFIG[av].emoji} Epuise. Change d'avatar ou reviens demain.`);
-    updateAvatarSwitcher();
+  // Check CTM before generating
+  const chapterCost = getChapterCost(currentAvatar);
+  if (chapterCost > 0 && ctmBalance < chapterCost) {
+    showCTMWarning(currentAvatar);
     return;
   }
 
-  // Track usage
-  state.avatarUsesToday[av] = (state.avatarUsesToday[av] || 0) + 1;
-  saveState();
-  updateAvatarSwitcher();
+  hideCTMWarning();
 
-  const cfg = AVATAR_CONFIG[av];
+  const cfg = AVATAR_CONFIG[currentAvatar];
   const randomLoading = cfg.loadingTexts[Math.floor(Math.random() * cfg.loadingTexts.length)];
 
   setLoading(true, randomLoading);
@@ -1191,115 +1390,92 @@ async function generateChapter() {
   chapterEl.textContent = '';
 
   try {
-    const data = await callWebhook(WEBHOOK_CHOICE_URL, {
-      avatar: state.currentAvatar,
-      name: state.characterName,
-      city: state.characterCity,
-      day: state.day,
-      chapter: state.chaptersToday + 1,
-      age: getAge(),
-      stats: {
-        health:    Math.round(state.stats.health),
-        happiness: Math.round(state.stats.happiness),
-        wealth:    Math.round(state.stats.wealth),
-        morality:  Math.round(state.stats.morality)
-      },
-      karma: Math.round(state.karma * 100),
-      history: state.history.slice(-5).map(h => ({ day: h.day, summary: h.summary })),
-      npcContext: getNpcContext()
+    const data = await api('/api/game/chapter', {
+      method: 'POST',
+      body: { avatar: currentAvatar }
     });
 
     setLoading(false);
     chapterEl.classList.remove('loading');
 
-    // Server decided random death (age/health probability)
-    if (data._isDead) {
-      triggerServerDeath(data);
-      return;
+    // Update CTM balance from response
+    if (data.ctm_remaining != null) {
+      ctmBalance = data.ctm_remaining;
+      updateCTMDisplay();
+      updateAvatarSwitcher();
     }
 
     // Display chapter title
-    const title = data.chapter_title || `Jour ${state.day} \u00B7 Chapitre ${state.chaptersToday + 1}`;
+    const title = data.chapter_title || `Chapitre ${chaptersToday + 1}`;
     document.getElementById('chapter-header').textContent = `\u2014 ${title} \u2014`;
 
     // Display narrative
     typewriterEffect('chapter-text', data.narrative || '');
 
-    // Server whisper (override local)
+    // Server whisper
     if (data.whisper) {
       setTimeout(() => showWhisper(data.whisper), 1500);
     }
 
+    // Milestone from server
+    if (data.milestone) {
+      showMilestone(data.milestone);
+    }
+
+    // Friend event from server
+    if (data.friendEvent) {
+      showFriendEvent(data.friendEvent);
+    }
+
+    // Render choices
     renderChoices(data.choices || []);
 
   } catch (e) {
-    console.error('Webhook error:', e);
+    console.error('Chapter error:', e);
     setLoading(false);
     chapterEl.classList.remove('loading');
-    chapterEl.textContent =
-      "Les fils du destin sont brouilles... La connexion est rompue.";
+    chapterEl.textContent = "Les fils du destin sont brouilles... La connexion est rompue.";
 
+    // Fallback choices
     renderChoices([
-      { text: "Continuer malgre tout", emoji: "\u{1F4AA}", tag: "courage", effects: { health: 0, happiness: 2, wealth: 0, morality: 2 }, karma_shift: 0, consequence: "Tu perseveres dans l'obscurite." },
-      { text: "Attendre un signe",     emoji: "\u{1F54A}", tag: "patience", effects: { health: 1, happiness: 1, wealth: 0, morality: 3 }, karma_shift: 2, consequence: "Le calme revient lentement." },
-      { text: "Se replier sur soi",    emoji: "\u{1F311}", tag: "solitude", effects: { health: -1, happiness: -3, wealth: 0, morality: -1 }, karma_shift: -2, consequence: "L'isolement t'enveloppe." }
+      { text: "Continuer malgre tout", emoji: "\u{1F4AA}", tag: "courage" },
+      { text: "Attendre un signe",     emoji: "\u{1F54A}", tag: "patience" },
+      { text: "Se replier sur soi",    emoji: "\u{1F311}", tag: "solitude" }
     ]);
   }
 }
 
 // ============================================================
-// DAILY RECAP — Long story after 3 choices
+// DAILY RECAP
 // ============================================================
 async function generateDailyRecap() {
-  const cfg = AVATAR_CONFIG[state.currentAvatar];
   setLoading(true, 'L\'histoire du jour s\'ecrit...');
 
-  const todayHistory = state.history.filter(h => h.day === state.day);
-  const summaries = todayHistory.map((h, i) => `Chapitre ${i + 1}: ${h.summary}`).join('\n');
-
   try {
-    const data = await callWebhook(WEBHOOK_CHOICE_URL, {
-      avatar: state.currentAvatar,
-      name: state.characterName,
-      city: state.characterCity,
-      day: state.day,
-      chapter: 99,
-      age: getAge(),
-      stats: {
-        health: Math.round(state.stats.health),
-        happiness: Math.round(state.stats.happiness),
-        wealth: Math.round(state.stats.wealth),
-        morality: Math.round(state.stats.morality)
-      },
-      karma: Math.round(state.karma * 100),
-      history: todayHistory,
-      isRecap: true,
-      recapSummaries: summaries
+    const data = await api('/api/game/recap', {
+      method: 'POST'
     });
 
     setLoading(false);
 
-    if (data._isDead) {
-      triggerServerDeath(data);
-      return;
-    }
-
     // Display long recap
     const recapEl = document.getElementById('daily-limit-msg');
     const choicesGrid = document.getElementById('choices-grid');
-    choicesGrid.style.display = 'none';
-    recapEl.style.display = 'block';
+    if (choicesGrid) choicesGrid.style.display = 'none';
+    if (recapEl) {
+      recapEl.style.display = 'block';
 
-    const narrative = data.narrative || 'La journee touche a sa fin...';
-    recapEl.innerHTML = `
-      <div class="recap-header">${data.chapter_title || 'Chronique du Jour ' + state.day}</div>
-      <div class="recap-text">${narrative}</div>
-      <div class="recap-footer">
-        <div class="limit-icon">&#127769;</div>
-        <p>Reviens demain pour continuer le destin de ${state.characterName}.</p>
-        <p class="recap-limits">Demain : Ange x1 &middot; Neutre x2 &middot; Dechu x5 &middot; Diable &infin;</p>
-      </div>
-    `;
+      const narrative = data.narrative || 'La journee touche a sa fin...';
+      recapEl.innerHTML = `
+        <div class="recap-header">${data.chapter_title || 'Chronique du Jour'}</div>
+        <div class="recap-text">${narrative}</div>
+        <div class="recap-footer">
+          <div class="limit-icon">&#127769;</div>
+          <p>Reviens demain pour continuer ton destin.</p>
+          <p class="recap-limits">Ange: 4 CTM &middot; Neutre: 3 CTM &middot; Dechu: 1 CTM &middot; Diable: GRATUIT</p>
+        </div>
+      `;
+    }
 
     if (data.whisper) showWhisper(data.whisper);
 
@@ -1309,50 +1485,19 @@ async function generateDailyRecap() {
 
     const recapEl = document.getElementById('daily-limit-msg');
     const choicesGrid = document.getElementById('choices-grid');
-    choicesGrid.style.display = 'none';
-    recapEl.style.display = 'block';
-    recapEl.innerHTML = `
-      <div class="limit-icon">&#127769;</div>
-      <h3>La nuit est tombee</h3>
-      <p>Tu as vecu tes 3 chapitres du jour.<br>Reviens demain pour continuer ton destin.</p>
-      <p class="recap-limits">Demain : Ange x1 &middot; Neutre x2 &middot; Dechu x5 &middot; Diable &infin;</p>
-    `;
+    if (choicesGrid) choicesGrid.style.display = 'none';
+    if (recapEl) {
+      recapEl.style.display = 'block';
+      recapEl.innerHTML = `
+        <div class="limit-icon">&#127769;</div>
+        <h3>La nuit est tombee</h3>
+        <p>Tu as vecu tes chapitres du jour.<br>Reviens demain pour continuer ton destin.</p>
+        <p class="recap-limits">Ange: 4 CTM &middot; Neutre: 3 CTM &middot; Dechu: 1 CTM &middot; Diable: GRATUIT</p>
+      `;
+    }
   }
 
   updateGameUI();
-}
-
-// ============================================================
-// SERVER DEATH (random probability from n8n)
-// ============================================================
-function triggerServerDeath(data) {
-  playSFX('gameover');
-  screenShake();
-
-  document.getElementById('go-char-name').textContent =
-    `${state.characterName} \u2014 ${state.characterCity}`;
-  document.getElementById('go-title').textContent = data.deathCause || 'La Vie s\'Acheve';
-  document.getElementById('go-epitaph').textContent = data.epitaph || 'Le reste est silence.';
-  document.getElementById('go-age').textContent = (data.age || getAge()) + ' ans';
-  document.getElementById('go-days').textContent = state.day;
-  document.getElementById('go-chapters').textContent = state.totalChapters;
-  document.getElementById('go-karma').textContent = Math.round(state.karma * 100) + '%';
-  document.getElementById('go-avatar').textContent = AVATAR_CONFIG[state.currentAvatar].emoji;
-
-  // Timeline
-  const timeline = document.getElementById('go-timeline');
-  timeline.innerHTML = state.history.slice(-8).map(h => {
-    const emoji = AVATAR_EMOJIS[h.avatar] || '';
-    return `<div class="go-timeline-entry">
-      <span class="tl-day">J.${h.day}</span>
-      <span class="tl-icon">${emoji}</span>
-      <span>${h.summary}</span>
-    </div>`;
-  }).join('');
-
-  applyTheme(state.currentAvatar, true);
-  showScreen('screen-gameover');
-  stopAmbient();
 }
 
 // ============================================================
@@ -1360,6 +1505,7 @@ function triggerServerDeath(data) {
 // ============================================================
 function renderChoices(choices) {
   const grid = document.getElementById('choices-grid');
+  if (!grid) return;
   grid.innerHTML = '';
 
   choices.forEach((c, i) => {
@@ -1369,7 +1515,7 @@ function renderChoices(choices) {
     const emoji = c.emoji ? `<span class="choice-emoji">${c.emoji}</span> ` : '';
     const tag = c.tag || c.hint || '';
     btn.innerHTML = `${emoji}${c.text}<span class="choice-karma-hint">${tag}</span>`;
-    btn.addEventListener('click', () => makeChoice(c));
+    btn.addEventListener('click', () => makeChoice(i, c));
     grid.appendChild(btn);
   });
 }
@@ -1377,8 +1523,9 @@ function renderChoices(choices) {
 // ============================================================
 // MAKE A CHOICE
 // ============================================================
-async function makeChoice(choiceData) {
-  if (state.chaptersToday >= DAILY_CHAPTER_LIMIT) return;
+async function makeChoice(choiceIndex, choiceData) {
+  const chaptersToday = (gameState && gameState.chaptersToday) || 0;
+  if (chaptersToday >= dailyLimit) return;
 
   initAudio();
   playSFX('choice');
@@ -1387,97 +1534,67 @@ async function makeChoice(choiceData) {
   document.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
 
   // Save previous stats for delta display
-  prevStats = { ...state.stats };
-
-  // Show consequence narrative
-  if (choiceData.consequence) {
-    typewriterEffect('chapter-text', choiceData.consequence);
+  if (gameState && gameState.character && gameState.character.stats) {
+    prevStats = { ...gameState.character.stats };
   }
 
   try {
-    // Call consequence webhook — server applies effects
-    const result = await callWebhook(WEBHOOK_CONSEQUENCE_URL, {
-      avatar: state.currentAvatar,
-      stats: {
-        health:    Math.round(state.stats.health),
-        happiness: Math.round(state.stats.happiness),
-        wealth:    Math.round(state.stats.wealth),
-        morality:  Math.round(state.stats.morality)
-      },
-      karma: Math.round(state.karma * 100),
-      day: state.day,
-      chapter: state.chaptersToday + 1,
-      age: getAge(),
-      choice: {
-        effects: choiceData.effects || { health: 0, happiness: 0, wealth: 0, morality: 0 },
-        karma_shift: choiceData.karma_shift || 0,
-        consequence: choiceData.consequence || ''
-      }
+    const result = await api('/api/game/choice', {
+      method: 'POST',
+      body: { choiceIndex, choiceData }
     });
 
-    // Update local state from server
-    state.stats = result.stats;
-    state.karma = result.karma / 100; // Server 0-100 → frontend 0-1
-
-    // History entry
-    state.history.push({
-      day:     state.day,
-      chapter: state.chaptersToday + 1,
-      summary: choiceData.text.substring(0, 60) + (choiceData.text.length > 60 ? '...' : ''),
-      avatar:  state.currentAvatar
-    });
-
-    state.chaptersToday++;
-    state.totalChapters++;
-
-    // Day progression from server
-    if (result.dayComplete) {
-      state.day = result.day;
-      state.chaptersToday = 0;
+    // Update local state from server response
+    if (gameState && gameState.character) {
+      if (result.stats) gameState.character.stats = result.stats;
+      if (result.karma != null) gameState.character.karma = result.karma;
+    }
+    if (result.ctm_balance != null) {
+      ctmBalance = result.ctm_balance;
+      updateCTMDisplay();
+    }
+    if (result.chaptersToday != null) {
+      gameState.chaptersToday = result.chaptersToday;
     }
 
-    // Avatar shift from karma
-    const newAvatar     = getAvatarFromKarma(state.karma);
-    const avatarChanged = newAvatar !== state.currentAvatar;
-    state.currentAvatar = newAvatar;
-
-    saveState();
-
-    if (avatarChanged) {
+    // Avatar change from karma shift
+    if (result.avatarChanged && result.avatar) {
+      const newAvatar = result.avatar;
       const cfg2 = AVATAR_CONFIG[newAvatar];
-      playSFX('avatar_change');
-      screenShake();
-      showNotif(`${cfg2.emoji} ${cfg2.name} prend le controle...`);
-      setTimeout(() => {
-        applyTheme(newAvatar, true);
-        updateAvatarSwitcher();
-        showWhisper();
-      }, 600);
-    }
-
-    // Happiness cap notification from server
-    if (result.happinessCap < 100 && state.stats.happiness >= result.happinessCap) {
-      setTimeout(() => {
-        showNotif(`\u{1F512} Bonheur plafonne a ${result.happinessCap}% \u2014 karma trop sombre`);
-      }, avatarChanged ? 2000 : 500);
+      if (cfg2) {
+        currentAvatar = newAvatar;
+        playSFX('avatar_change');
+        screenShake();
+        showNotif(`${cfg2.emoji} ${cfg2.name} prend le controle...`);
+        setTimeout(() => {
+          applyTheme(newAvatar, true);
+          updateAvatarSwitcher();
+          showWhisper();
+        }, 600);
+      }
     }
 
     // Negative SFX
-    if ((choiceData.karma_shift || 0) < -5) {
-      playSFX('negative');
-      screenShake();
+    if (result.karma != null && prevStats && result.stats) {
+      const karmaDropped = (result.karma < (gameState.character.karma || 0.5));
+      if (karmaDropped) {
+        playSFX('negative');
+        screenShake();
+      }
     }
 
-    // Health death from server
-    if (result.healthDead) {
-      setTimeout(triggerGameOver, 1500);
+    // Death check
+    if (result.dead) {
+      setTimeout(() => triggerGameOver(result.deathCause), 1500);
       return;
     }
 
     updateGameUI(true);
-    evaluateTitles();
+    updateAvatarSwitcher();
 
-    if (state.chaptersToday < DAILY_CHAPTER_LIMIT) {
+    const newChaptersToday = result.chaptersToday || (gameState ? gameState.chaptersToday : 0);
+
+    if (newChaptersToday < dailyLimit) {
       setTimeout(() => showWhisper(), 1200);
       setTimeout(generateChapter, 1600);
     } else {
@@ -1485,75 +1602,89 @@ async function makeChoice(choiceData) {
     }
 
   } catch (e) {
-    console.error('Consequence webhook error:', e);
-    // Fallback local: apply effects directly
-    const fx = choiceData.effects || { health: 0, happiness: 0, wealth: 0, morality: 0 };
-    state.stats.health    = Math.max(0, Math.min(100, state.stats.health + (fx.health || 0)));
-    state.stats.happiness = Math.max(0, Math.min(100, state.stats.happiness + (fx.happiness || 0)));
-    state.stats.wealth    = Math.max(0, Math.min(100, state.stats.wealth + (fx.wealth || 0)));
-    state.stats.morality  = Math.max(0, Math.min(100, state.stats.morality + (fx.morality || 0)));
-    state.karma = Math.max(0, Math.min(1, state.karma + (choiceData.karma_shift || 0) / 100));
-
-    state.history.push({
-      day: state.day, chapter: state.chaptersToday + 1,
-      summary: choiceData.text.substring(0, 60), avatar: state.currentAvatar
-    });
-    state.chaptersToday++;
-    state.totalChapters++;
-    saveState();
-    updateGameUI(true);
-
-    if (state.stats.health <= 0 || state.stats.happiness <= 0) {
-      setTimeout(triggerGameOver, 1500);
-      return;
-    }
-    if (state.chaptersToday < DAILY_CHAPTER_LIMIT) setTimeout(generateChapter, 1600);
+    console.error('Choice error:', e);
+    showNotif('Erreur: ' + e.message);
+    // Re-enable buttons so the player can try again
+    document.querySelectorAll('.choice-btn').forEach(b => b.disabled = false);
   }
+}
+
+// ============================================================
+// MILESTONE DISPLAY
+// ============================================================
+function showMilestone(milestone) {
+  document.getElementById('milestone-age').textContent = (milestone.age || '') + ' ans';
+  document.getElementById('milestone-title').textContent = milestone.title || '';
+  document.getElementById('milestone-text').textContent = milestone.text || '';
+  document.getElementById('milestone-overlay').classList.add('active');
+  playSFX('select');
+}
+
+function closeMilestone() {
+  document.getElementById('milestone-overlay').classList.remove('active');
+}
+
+// ============================================================
+// FRIEND EVENT IN GAME
+// ============================================================
+function showFriendEvent(event) {
+  const alert = document.getElementById('friend-event-alert');
+  const text = document.getElementById('friend-event-text');
+  if (!alert || !text) return;
+
+  text.textContent = event.text || event.message || 'Un ami a influence ta vie...';
+  alert.style.display = 'block';
+
+  setTimeout(() => {
+    alert.style.display = 'none';
+  }, 6000);
 }
 
 // ============================================================
 // GAME OVER
 // ============================================================
-async function triggerGameOver() {
-  const cfg = AVATAR_CONFIG[state.currentAvatar];
+async function triggerGameOver(deathCause) {
   playSFX('gameover');
   screenShake();
 
-  // Epitaphes locales par avatar (pas d'appel API)
+  const c = gameState && gameState.character ? gameState.character : {};
+  const stats = c.stats || {};
+  const cfg = AVATAR_CONFIG[currentAvatar];
+
+  // Epitaphs by avatar
+  const name = c.name || '???';
+  const city = c.city || '???';
+  const age = c.age || 16;
   const epitaphs = {
-    angel:   `${state.characterName} a vecu dans la lumiere. Que son ame trouve le repos eternel.`,
-    neutral: `${state.characterName}. Ne(e) a ${state.characterCity}. Decede(e) a ${getAge()} ans. Statistique accomplie.`,
-    fallen:  `${state.characterName} a danse avec les ombres. La nuit l'a finalement reclame(e).`,
-    devil:   `${state.characterName} a regne par le feu. Les cendres sont tout ce qui reste.`
+    angel:   `${name} a vecu dans la lumiere. Que son ame trouve le repos eternel.`,
+    neutral: `${name}. Ne(e) a ${city}. Decede(e) a ${age} ans. Statistique accomplie.`,
+    fallen:  `${name} a danse avec les ombres. La nuit l'a finalement reclame(e).`,
+    devil:   `${name} a regne par le feu. Les cendres sont tout ce qui reste.`
   };
-  const epitaph = epitaphs[state.currentAvatar] || epitaphs.neutral;
+  const epitaph = epitaphs[currentAvatar] || epitaphs.neutral;
 
-  // Populate game over screen
-  const finalAge = getAge();
-  document.getElementById('go-char-name').textContent =
-    `${state.characterName} \u2014 ${state.characterCity}`;
-  document.getElementById('go-title').textContent =
-    state.stats.health <= 0 ? 'Le Corps Rend l\'Ame' : 'L\'Ame Se Brise';
+  document.getElementById('go-char-name').textContent = `${name} \u2014 ${city}`;
+  document.getElementById('go-title').textContent = deathCause || (stats.health <= 0 ? 'Le Corps Rend l\'Ame' : 'L\'Ame Se Brise');
   document.getElementById('go-epitaph').textContent = epitaph;
-  document.getElementById('go-age').textContent      = finalAge + ' ans';
-  document.getElementById('go-days').textContent     = state.day;
-  document.getElementById('go-chapters').textContent = state.totalChapters;
-  document.getElementById('go-karma').textContent    = Math.round(state.karma * 100) + '%';
-  document.getElementById('go-avatar').textContent   = cfg.emoji;
+  document.getElementById('go-age').textContent = age + ' ans';
+  document.getElementById('go-days').textContent = c.day || 1;
+  document.getElementById('go-chapters').textContent = c.total_chapters || 0;
+  document.getElementById('go-karma').textContent = Math.round((c.karma || 0) * 100) + '%';
+  document.getElementById('go-avatar').textContent = cfg ? cfg.emoji : '';
 
-  // Build timeline
+  // Timeline
   const timeline = document.getElementById('go-timeline');
-  const lastEntries = state.history.slice(-8);
-  timeline.innerHTML = lastEntries.map(h => {
+  const history = (gameState && gameState.history) ? gameState.history.slice(-8) : [];
+  timeline.innerHTML = history.map(h => {
     const emoji = AVATAR_EMOJIS[h.avatar] || '';
     return `<div class="go-timeline-entry">
       <span class="tl-day">J.${h.day}</span>
       <span class="tl-icon">${emoji}</span>
-      <span>${h.summary}</span>
+      <span>${h.summary || h.text || ''}</span>
     </div>`;
   }).join('');
 
-  applyTheme(state.currentAvatar, true);
+  applyTheme(currentAvatar, true);
   showScreen('screen-gameover');
   stopAmbient();
 }
@@ -1561,29 +1692,39 @@ async function triggerGameOver() {
 // ============================================================
 // RESTART
 // ============================================================
-function restartGame() {
-  localStorage.removeItem(SAVE_KEY);
-  state = defaultState();
-  selectedAvatar = null;
-  prevStats = null;
-
+async function restartGame() {
   playSFX('select');
+  setLoading(true, 'Reinitialisation...');
 
-  document.querySelectorAll('.avatar-card').forEach(c => {
-    c.style.opacity   = '1';
-    c.classList.remove('selected');
-  });
+  try {
+    await api('/api/game/restart', { method: 'POST' });
 
-  // Reset inputs
-  const nameInput = document.getElementById('input-name');
-  const cityInput = document.getElementById('input-city');
-  if (nameInput) nameInput.value = '';
-  if (cityInput) cityInput.value = '';
+    gameState = null;
+    currentAvatar = 'angel';
+    selectedAvatar = null;
+    prevStats = null;
 
-  document.getElementById('btn-start').classList.remove('visible');
-  document.getElementById('save-resume').style.display = 'none';
-  applyTheme('angel', false);
-  showScreen('screen-character');
+    document.querySelectorAll('.avatar-card').forEach(c => {
+      c.style.opacity   = '1';
+      c.classList.remove('selected');
+    });
+
+    const nameInput = document.getElementById('input-name');
+    const cityInput = document.getElementById('input-city');
+    if (nameInput) nameInput.value = '';
+    if (cityInput) cityInput.value = '';
+
+    document.getElementById('btn-start').classList.remove('visible');
+    document.getElementById('save-resume').style.display = 'none';
+
+    setLoading(false);
+    applyTheme('angel', false);
+    showScreen('screen-character');
+
+  } catch (e) {
+    setLoading(false);
+    showNotif('Erreur: ' + e.message);
+  }
 }
 
 // ============================================================
@@ -1595,42 +1736,495 @@ function toggleHistory() {
 }
 
 // ============================================================
-// TYPEWRITER EFFECT (improved)
+// SHARE DEATH CARD
 // ============================================================
-function typewriterEffect(elementId, text, speed = 16) {
-  const el = document.getElementById(elementId);
-  el.textContent = '';
-  el.classList.add('loading');
-  let i = 0;
+async function shareDeathCard() {
+  const shareCanvas = document.getElementById('share-canvas');
+  const shareCtx = shareCanvas.getContext('2d');
+  shareCanvas.width = 600;
+  shareCanvas.height = 400;
 
-  const timer = setInterval(() => {
-    el.textContent += text[i];
-    i++;
-    if (i >= text.length) {
-      clearInterval(timer);
-      el.classList.remove('loading');
+  const c = gameState && gameState.character ? gameState.character : {};
+  const stats = c.stats || {};
+  const name = c.name || '???';
+  const city = c.city || '???';
+  const age = c.age || 16;
+  const day = c.day || 1;
+  const totalChapters = c.total_chapters || 0;
+  const karma = c.karma || 0;
+
+  // Background
+  const grad = shareCtx.createLinearGradient(0, 0, 0, 400);
+  grad.addColorStop(0, '#0a0a12');
+  grad.addColorStop(1, '#050508');
+  shareCtx.fillStyle = grad;
+  shareCtx.fillRect(0, 0, 600, 400);
+
+  // Border
+  shareCtx.strokeStyle = 'rgba(240,192,64,0.3)';
+  shareCtx.lineWidth = 1;
+  shareCtx.strokeRect(20, 20, 560, 360);
+
+  // Title
+  shareCtx.fillStyle = '#f0c040';
+  shareCtx.font = 'bold 28px serif';
+  shareCtx.textAlign = 'center';
+  shareCtx.fillText('ANIMUS', 300, 70);
+
+  // Name
+  shareCtx.fillStyle = '#e0d0b0';
+  shareCtx.font = 'italic 18px serif';
+  shareCtx.fillText(name, 300, 110);
+
+  // City + Age
+  shareCtx.fillStyle = '#806040';
+  shareCtx.font = '12px monospace';
+  shareCtx.fillText(city + ' \u2014 ' + age + ' ans', 300, 135);
+
+  // Title earned
+  if (c.current_title) {
+    shareCtx.fillStyle = '#f0c040';
+    shareCtx.font = '11px monospace';
+    shareCtx.fillText('\u00AB ' + c.current_title + ' \u00BB', 300, 158);
+  }
+
+  // Stats
+  shareCtx.font = '11px monospace';
+  shareCtx.textAlign = 'left';
+  const statLabels = [
+    ['\u2665 Sante', Math.round(stats.health || 0)],
+    ['\u2605 Bonheur', Math.round(stats.happiness || 0)],
+    ['\u25C6 Richesse', Math.round(stats.wealth || 0)],
+    ['\u263D Moralite', Math.round(stats.morality || 0)]
+  ];
+  statLabels.forEach((s, i) => {
+    shareCtx.fillStyle = '#806040';
+    shareCtx.fillText(s[0], 180, 200 + i * 22);
+    shareCtx.fillStyle = s[1] <= 20 ? '#ff4040' : '#c0a060';
+    shareCtx.fillText(s[1] + '/100', 360, 200 + i * 22);
+  });
+
+  // Karma
+  shareCtx.textAlign = 'center';
+  shareCtx.fillStyle = '#f0c040';
+  shareCtx.font = 'bold 14px monospace';
+  shareCtx.fillText('Karma: ' + Math.round(karma * 100) + '%', 300, 310);
+
+  // Days + chapters
+  shareCtx.fillStyle = '#806040';
+  shareCtx.font = '11px monospace';
+  shareCtx.fillText('Jour ' + day + ' \u2014 ' + totalChapters + ' chapitres', 300, 335);
+
+  // Footer
+  shareCtx.fillStyle = '#403020';
+  shareCtx.font = '9px monospace';
+  shareCtx.fillText('animus \u2014 l\'influence invisible', 300, 385);
+
+  // Download
+  const link = document.createElement('a');
+  link.download = 'animus_' + name + '.png';
+  link.href = shareCanvas.toDataURL('image/png');
+  link.click();
+
+  // Claim share bonus
+  try {
+    const data = await api('/api/shop/claim-share', { method: 'POST' });
+    if (data.bonus) {
+      ctmBalance = data.newBalance || ctmBalance + data.bonus;
+      updateCTMDisplay();
+      showNotif(`+${data.bonus} CTM pour le partage !`);
     }
-  }, speed);
+  } catch (e) {
+    // Share bonus may already be claimed
+  }
 }
 
 // ============================================================
-// LOADING OVERLAY
+// SHOP
 // ============================================================
-function setLoading(active, text = '') {
-  const overlay = document.getElementById('loading-overlay');
-  overlay.classList.toggle('active', active);
-  if (text) document.getElementById('loading-text').textContent = text;
+async function showShop() {
+  showScreen('screen-shop');
+  playSFX('select');
+
+  try {
+    const data = await api('/api/shop/packs');
+    ctmBalance = data.balance || ctmBalance;
+    updateCTMDisplay();
+
+    const balEl = document.getElementById('shop-balance');
+    if (balEl) balEl.textContent = ctmBalance;
+
+    // Update pack display if server provides dynamic packs
+    if (data.packs && data.packs.length > 0) {
+      const grid = document.getElementById('shop-grid');
+      grid.innerHTML = data.packs.map(pack => {
+        const popular = pack.popular ? ' pack-popular' : '';
+        const divine = pack.divine ? ' pack-divine' : '';
+        const badge = pack.badge ? `<div class="pack-badge">${pack.badge}</div>` : '';
+        return `<div class="shop-pack${popular}${divine}" onclick="buyPack('${pack.id}')">
+          ${badge}
+          <div class="pack-name">${pack.name}</div>
+          <div class="pack-ctm">${pack.ctm} CTM</div>
+          <div class="pack-price">${pack.price}</div>
+          <div class="pack-desc">${pack.desc || ''}</div>
+        </div>`;
+      }).join('');
+    }
+
+    // Update costs display if server provides
+    if (data.costs) {
+      const costsGrid = document.querySelector('.shop-costs-grid');
+      if (costsGrid) {
+        costsGrid.innerHTML = `
+          <span>\u{1F54A}\uFE0F Ange: ${data.costs.angel || 4} CTM</span>
+          <span>\u2696\uFE0F Neutre: ${data.costs.neutral || 3} CTM</span>
+          <span>\u{1FA78} Dechu: ${data.costs.fallen || 1} CTM</span>
+          <span>\u{1F525} Diable: GRATUIT</span>
+        `;
+      }
+    }
+
+  } catch (e) {
+    console.error('Shop load error:', e);
+  }
+}
+
+function closeShop() {
+  if (gameState && gameState.character) {
+    showScreen('screen-game');
+  } else {
+    showScreen('screen-intro');
+  }
+}
+
+async function buyPack(packId) {
+  playSFX('select');
+  setLoading(true, 'Redirection vers le paiement...');
+
+  try {
+    const data = await api('/api/shop/checkout', {
+      method: 'POST',
+      body: { packId }
+    });
+
+    setLoading(false);
+
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      showNotif('Erreur de redirection de paiement.');
+    }
+
+  } catch (e) {
+    setLoading(false);
+    showNotif('Erreur: ' + e.message);
+  }
+}
+
+async function claimDaily() {
+  try {
+    const data = await api('/api/shop/claim-daily', { method: 'POST' });
+    if (data.bonus) {
+      ctmBalance = data.newBalance || ctmBalance + data.bonus;
+      updateCTMDisplay();
+      showNotif(`+${data.bonus} CTM ! Bonus quotidien reclame.`);
+
+      // Update shop balance display
+      const balEl = document.getElementById('shop-balance');
+      if (balEl) balEl.textContent = ctmBalance;
+
+      // Disable the button
+      const btn = document.getElementById('btn-claim-daily');
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+      }
+    }
+  } catch (e) {
+    showNotif(e.message || 'Bonus deja reclame aujourd\'hui.');
+  }
+}
+
+async function shareForCTM() {
+  // Share functionality + CTM claim
+  try {
+    // Try Web Share API first
+    if (navigator.share) {
+      await navigator.share({
+        title: 'ANIMUS — L\'Influence Invisible',
+        text: 'Vis une vie entiere guidee par des forces invisibles. Chaque choix compte.',
+        url: window.location.href
+      });
+    }
+
+    const data = await api('/api/shop/claim-share', { method: 'POST' });
+    if (data.bonus) {
+      ctmBalance = data.newBalance || ctmBalance + data.bonus;
+      updateCTMDisplay();
+      showNotif(`+${data.bonus} CTM pour le partage !`);
+
+      const balEl = document.getElementById('shop-balance');
+      if (balEl) balEl.textContent = ctmBalance;
+    }
+  } catch (e) {
+    showNotif(e.message || 'Bonus de partage deja reclame.');
+  }
 }
 
 // ============================================================
-// NOTIFICATION
+// DAILY BONUS POPUP
 // ============================================================
-function showNotif(msg, duration = 3500) {
-  const notif = document.getElementById('notif');
-  const textEl = document.getElementById('notif-text');
-  textEl.textContent = msg;
-  notif.classList.add('show');
-  setTimeout(() => notif.classList.remove('show'), duration);
+function showDailyBonus(amount) {
+  const overlay = document.getElementById('daily-bonus-overlay');
+  if (!overlay) return;
+
+  const amountEl = overlay.querySelector('.daily-bonus-amount');
+  if (amountEl) amountEl.textContent = '+' + amount + ' CTM';
+
+  overlay.style.display = 'flex';
+}
+
+function closeDailyBonus() {
+  const overlay = document.getElementById('daily-bonus-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+// ============================================================
+// FRIENDS SYSTEM
+// ============================================================
+async function showFriends() {
+  showScreen('screen-friends');
+  playSFX('select');
+
+  try {
+    const data = await api('/api/social/friends');
+
+    // Render friends list
+    const listEl = document.getElementById('friend-list');
+    const friends = data.friends || [];
+
+    if (friends.length === 0) {
+      listEl.innerHTML = '<div class="friend-empty">Aucun ami pour le moment. Ajoute des joueurs !</div>';
+    } else {
+      listEl.innerHTML = friends.map(f => {
+        const avatarEmoji = AVATAR_EMOJIS[f.current_avatar] || '\u2696\uFE0F';
+        return `<div class="friend-entry">
+          <span class="friend-avatar">${avatarEmoji}</span>
+          <div class="friend-info">
+            <span class="friend-name">${f.username || f.name || '???'}</span>
+            <span class="friend-detail">${f.status || ''}</span>
+          </div>
+          <button class="friend-remove-btn" onclick="removeFriend('${f.userId || f.id}')" title="Retirer">\u2715</button>
+        </div>`;
+      }).join('');
+    }
+
+    // Render pending requests
+    const pending = data.pending || [];
+    const pendingSection = document.getElementById('friend-pending-section');
+    const pendingList = document.getElementById('friend-pending-list');
+
+    if (pending.length > 0) {
+      pendingSection.style.display = 'block';
+      pendingList.innerHTML = pending.map(p => {
+        return `<div class="friend-pending-entry">
+          <span class="friend-name">${p.username || p.from_username || '???'}</span>
+          <div class="friend-pending-actions">
+            <button class="friend-accept-btn" onclick="acceptFriend('${p.friendshipId || p.id}')">Accepter</button>
+            <button class="friend-reject-btn" onclick="rejectFriend('${p.friendshipId || p.id}')">Refuser</button>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      pendingSection.style.display = 'none';
+    }
+
+  } catch (e) {
+    console.error('Friends error:', e);
+    showNotif('Erreur: ' + e.message);
+  }
+}
+
+function closeFriends() {
+  if (gameState && gameState.character) {
+    showScreen('screen-game');
+  } else {
+    showScreen('screen-intro');
+  }
+}
+
+async function searchFriend() {
+  const input = document.getElementById('friend-search-input');
+  const query = input.value.trim();
+  if (!query || query.length < 2) {
+    showNotif('Entre au moins 2 caracteres.');
+    return;
+  }
+
+  const resultsEl = document.getElementById('friend-search-results');
+
+  try {
+    const data = await api('/api/social/search/' + encodeURIComponent(query));
+    const results = data.results || [];
+
+    if (results.length === 0) {
+      resultsEl.innerHTML = '<div class="friend-empty">Aucun joueur trouve.</div>';
+    } else {
+      resultsEl.innerHTML = results.map(r => {
+        const avatarEmoji = AVATAR_EMOJIS[r.current_avatar] || '\u2696\uFE0F';
+        return `<div class="friend-search-entry">
+          <span class="friend-avatar">${avatarEmoji}</span>
+          <span class="friend-name">${r.username}</span>
+          <button class="friend-add-btn" onclick="sendFriendRequest('${r.username}')">Ajouter</button>
+        </div>`;
+      }).join('');
+    }
+
+  } catch (e) {
+    resultsEl.innerHTML = '<div class="friend-empty">Erreur de recherche.</div>';
+  }
+}
+
+async function sendFriendRequest(username) {
+  try {
+    const data = await api('/api/social/request', {
+      method: 'POST',
+      body: { username }
+    });
+    showNotif(data.message || 'Demande envoyee !');
+    playSFX('select');
+  } catch (e) {
+    showNotif(e.message || 'Erreur lors de l\'envoi.');
+  }
+}
+
+async function acceptFriend(friendshipId) {
+  try {
+    await api('/api/social/accept', {
+      method: 'POST',
+      body: { friendshipId }
+    });
+    showNotif('Ami accepte !');
+    playSFX('choice');
+    showFriends(); // Refresh
+  } catch (e) {
+    showNotif(e.message || 'Erreur.');
+  }
+}
+
+async function rejectFriend(friendshipId) {
+  try {
+    await api('/api/social/reject', {
+      method: 'POST',
+      body: { friendshipId }
+    });
+    showNotif('Demande refusee.');
+    showFriends(); // Refresh
+  } catch (e) {
+    showNotif(e.message || 'Erreur.');
+  }
+}
+
+async function removeFriend(friendUserId) {
+  if (!confirm('Retirer cet ami ?')) return;
+
+  try {
+    await api('/api/social/remove', {
+      method: 'POST',
+      body: { friendUserId }
+    });
+    showNotif('Ami retire.');
+    showFriends(); // Refresh
+  } catch (e) {
+    showNotif(e.message || 'Erreur.');
+  }
+}
+
+// ============================================================
+// LEADERBOARD
+// ============================================================
+async function showLeaderboard() {
+  showScreen('screen-leaderboard');
+  playSFX('select');
+
+  const tableEl = document.getElementById('lb-table');
+  tableEl.innerHTML = '<div class="lb-loading">Chargement du classement...</div>';
+
+  try {
+    const data = await api('/api/leaderboard/current');
+    const leaderboard = data.leaderboard || [];
+
+    // My rank
+    if (data.myRank) {
+      const myRankSection = document.getElementById('lb-my-rank');
+      myRankSection.style.display = 'flex';
+      document.getElementById('lb-my-position').textContent = '#' + data.myRank.rank;
+      document.getElementById('lb-my-score').textContent = (data.myRank.score || 0) + ' pts';
+    }
+
+    // Table
+    if (leaderboard.length === 0) {
+      tableEl.innerHTML = '<div class="lb-empty">Aucun classement cette semaine.</div>';
+    } else {
+      const rankEmojis = { 1: '\u{1F451}', 2: '\u{1F948}', 3: '\u{1F949}' };
+      tableEl.innerHTML = leaderboard.map((entry, i) => {
+        const rank = i + 1;
+        const emoji = rankEmojis[rank] || '';
+        const avatarEmoji = AVATAR_EMOJIS[entry.current_avatar] || '';
+        const isMe = entry.isMe ? ' lb-me' : '';
+        return `<div class="lb-row${isMe}">
+          <span class="lb-row-rank">${emoji} #${rank}</span>
+          <span class="lb-row-avatar">${avatarEmoji}</span>
+          <span class="lb-row-name">${entry.username || entry.name || '???'}</span>
+          <span class="lb-row-score">${entry.score || 0} pts</span>
+          <span class="lb-row-detail">J${entry.day || 0} \u00B7 ${entry.age || 16} ans \u00B7 K:${Math.round((entry.karma || 0) * 100)}%</span>
+        </div>`;
+      }).join('');
+    }
+
+  } catch (e) {
+    console.error('Leaderboard error:', e);
+    tableEl.innerHTML = '<div class="lb-empty">Erreur de chargement.</div>';
+  }
+}
+
+function closeLeaderboard() {
+  if (gameState && gameState.character) {
+    showScreen('screen-game');
+  } else {
+    showScreen('screen-intro');
+  }
+}
+
+async function toggleLBHistory() {
+  const histEl = document.getElementById('lb-history');
+  if (!histEl) return;
+
+  if (histEl.style.display === 'none') {
+    histEl.style.display = 'block';
+
+    try {
+      const data = await api('/api/leaderboard/history');
+      const weeks = data.weeks || [];
+
+      if (weeks.length === 0) {
+        histEl.innerHTML = '<div class="lb-empty">Aucun historique.</div>';
+      } else {
+        histEl.innerHTML = weeks.map(w => {
+          const winner = w.winner || {};
+          return `<div class="lb-history-entry">
+            <span class="lb-history-week">${w.week_label || w.week || ''}</span>
+            <span class="lb-history-winner">${winner.username || '???'} \u2014 ${winner.score || 0} pts</span>
+          </div>`;
+        }).join('');
+      }
+
+    } catch (e) {
+      histEl.innerHTML = '<div class="lb-empty">Erreur de chargement.</div>';
+    }
+  } else {
+    histEl.style.display = 'none';
+  }
 }
 
 // ============================================================
@@ -1656,219 +2250,33 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'm' || e.key === 'M') {
     toggleSound();
   }
+
+  // Escape to close overlays
+  if (e.key === 'Escape') {
+    closeMilestone();
+    closeDailyBonus();
+    const activeScreen = document.querySelector('.screen.active');
+    if (activeScreen) {
+      const id = activeScreen.id;
+      if (id === 'screen-shop') closeShop();
+      if (id === 'screen-friends') closeFriends();
+      if (id === 'screen-leaderboard') closeLeaderboard();
+    }
+  }
 });
 
 // ============================================================
-// TUTORIAL
+// SAVE INDICATOR (cosmetic only — server saves)
 // ============================================================
-let currentSlide = 0;
-
-function goToSlide(n) {
-  currentSlide = n;
-  document.querySelectorAll('.tuto-slide').forEach((s, i) => {
-    s.classList.toggle('active', i === n);
-  });
-  document.querySelectorAll('.tuto-dot').forEach((d, i) => {
-    d.classList.toggle('active', i === n);
-  });
-  document.getElementById('tuto-prev').style.visibility = n === 0 ? 'hidden' : 'visible';
-  document.getElementById('tuto-next').textContent = n === 2 ? 'Commencer' : 'Suivant';
-}
-
-function nextSlide() {
-  if (currentSlide >= 2) {
-    showScreen('screen-character');
-    showSaveResume();
-    return;
+function flashSaveIndicator() {
+  const ind = document.getElementById('save-indicator');
+  if (ind) {
+    ind.textContent = 'Sauvegarde OK';
+    ind.classList.remove('saved');
+    void ind.offsetHeight;
+    ind.classList.add('saved');
+    setTimeout(() => { ind.textContent = 'Sauvegarde auto'; }, 2000);
   }
-  goToSlide(currentSlide + 1);
-}
-
-function prevSlide() {
-  if (currentSlide > 0) goToSlide(currentSlide - 1);
-}
-
-// ============================================================
-// MILESTONE SYSTEM
-// ============================================================
-let pendingMilestone = null;
-
-function checkMilestones() {
-  const age = getAge();
-  const milestone = AGE_MILESTONES[age];
-  if (!milestone) return false;
-  if (state.milestonesTriggered.includes(age)) return false;
-
-  // Trigger milestone
-  state.milestonesTriggered.push(age);
-
-  // Apply bonuses
-  if (milestone.bonus) {
-    Object.keys(milestone.bonus).forEach(k => {
-      state.stats[k] = Math.max(0, Math.min(100, state.stats[k] + milestone.bonus[k]));
-    });
-  }
-
-  // Check for NPC generation at this age
-  checkNpcGeneration(age);
-
-  // Show milestone popup
-  document.getElementById('milestone-age').textContent = age + ' ans';
-  document.getElementById('milestone-title').textContent = milestone.title;
-  document.getElementById('milestone-text').textContent = milestone.text;
-  document.getElementById('milestone-overlay').classList.add('active');
-
-  playSFX('select');
-  saveState();
-  updateGameUI();
-  return true;
-}
-
-function closeMilestone() {
-  document.getElementById('milestone-overlay').classList.remove('active');
-}
-
-// ============================================================
-// NPC SYSTEM
-// ============================================================
-function checkNpcGeneration(age) {
-  const template = NPC_TEMPLATES[age];
-  if (!template) return;
-  if (state.npcs.find(n => n.role === template.role)) return;
-
-  const name = template.names[Math.floor(Math.random() * template.names.length)];
-  state.npcs.push({
-    name,
-    role: template.role,
-    label: template.label,
-    metAtAge: age,
-    alive: true
-  });
-
-  setTimeout(() => {
-    showNotif(`Nouvelle rencontre : ${name} (${template.label})`);
-  }, 1500);
-}
-
-function getNpcContext() {
-  if (state.npcs.length === 0) return '';
-  return 'Personnages secondaires: ' + state.npcs
-    .filter(n => n.alive)
-    .map(n => n.name + ' (' + n.label + ', rencontre a ' + n.metAtAge + ' ans)')
-    .join(', ') + '. Integre-les naturellement dans le recit.';
-}
-
-// ============================================================
-// TITLES SYSTEM
-// ============================================================
-function evaluateTitles() {
-  let best = '';
-  TITLES.forEach(t => {
-    if (t.condition(state)) {
-      if (!state.earnedTitles.includes(t.id)) {
-        state.earnedTitles.push(t.id);
-        showNotif(`Titre debloque : ${t.name}`);
-      }
-      best = t.name;
-    }
-  });
-  if (best && best !== state.currentTitle) {
-    state.currentTitle = best;
-  }
-  const el = document.getElementById('ci-title');
-  if (el) el.textContent = state.currentTitle;
-  saveState();
-}
-
-// ============================================================
-// SHARE DEATH CARD
-// ============================================================
-function shareDeathCard() {
-  const canvas = document.getElementById('share-canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = 600;
-  canvas.height = 400;
-
-  // Background
-  const grad = ctx.createLinearGradient(0, 0, 0, 400);
-  grad.addColorStop(0, '#0a0a12');
-  grad.addColorStop(1, '#050508');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 600, 400);
-
-  // Border
-  ctx.strokeStyle = 'rgba(240,192,64,0.3)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(20, 20, 560, 360);
-
-  // Title
-  ctx.fillStyle = '#f0c040';
-  ctx.font = 'bold 28px serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('ANIMUS', 300, 70);
-
-  // Name
-  ctx.fillStyle = '#e0d0b0';
-  ctx.font = 'italic 18px serif';
-  ctx.fillText(state.characterName, 300, 110);
-
-  // City + Age
-  ctx.fillStyle = '#806040';
-  ctx.font = '12px monospace';
-  ctx.fillText(state.characterCity + ' \u2014 ' + getAge() + ' ans', 300, 135);
-
-  // Title earned
-  if (state.currentTitle) {
-    ctx.fillStyle = '#f0c040';
-    ctx.font = '11px monospace';
-    ctx.fillText('\u00AB ' + state.currentTitle + ' \u00BB', 300, 158);
-  }
-
-  // Stats
-  ctx.font = '11px monospace';
-  ctx.textAlign = 'left';
-  const stats = [
-    ['\u2665 Sante', Math.round(state.stats.health)],
-    ['\u2605 Bonheur', Math.round(state.stats.happiness)],
-    ['\u25C6 Richesse', Math.round(state.stats.wealth)],
-    ['\u263D Moralite', Math.round(state.stats.morality)]
-  ];
-  stats.forEach((s, i) => {
-    ctx.fillStyle = '#806040';
-    ctx.fillText(s[0], 180, 200 + i * 22);
-    ctx.fillStyle = s[1] <= 20 ? '#ff4040' : '#c0a060';
-    ctx.fillText(s[1] + '/100', 360, 200 + i * 22);
-  });
-
-  // Karma
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#f0c040';
-  ctx.font = 'bold 14px monospace';
-  ctx.fillText('Karma: ' + Math.round(state.karma * 100) + '%', 300, 310);
-
-  // Days + chapters
-  ctx.fillStyle = '#806040';
-  ctx.font = '11px monospace';
-  ctx.fillText('Jour ' + state.day + ' \u2014 ' + state.totalChapters + ' chapitres', 300, 335);
-
-  // NPCs
-  if (state.npcs.length > 0) {
-    ctx.font = '10px monospace';
-    ctx.fillStyle = '#605040';
-    const npcText = state.npcs.map(n => n.name).join(', ');
-    ctx.fillText('Rencontres: ' + npcText, 300, 355);
-  }
-
-  // Footer
-  ctx.fillStyle = '#403020';
-  ctx.font = '9px monospace';
-  ctx.fillText('animus \u2014 l\'influence invisible', 300, 385);
-
-  // Download
-  const link = document.createElement('a');
-  link.download = 'animus_' + state.characterName + '.png';
-  link.href = canvas.toDataURL('image/png');
-  link.click();
 }
 
 // ============================================================
@@ -1883,45 +2291,23 @@ resizeCanvas();
 initParticles('angel');
 animateParticles();
 
-loadState();
-if (state.alive && state.totalChapters > 0 && state.characterName) {
-  setTimeout(() => {
-    showNotif(`Partie de ${state.characterName} trouvee. Choisissez votre avatar pour continuer.`);
-  }, 9000);
-}
+// Check for payment callback (Stripe redirect)
+(function checkPaymentCallback() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('payment') === 'success') {
+    setTimeout(() => {
+      showNotif('Paiement reussi ! CTM credites.');
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }, 1000);
+  }
+  if (params.get('payment') === 'cancel') {
+    setTimeout(() => {
+      showNotif('Paiement annule.');
+      window.history.replaceState({}, '', window.location.pathname);
+    }, 1000);
+  }
+})();
 
 // Start on cinematic screen
 showScreen('screen-cinematic');
-
-// Force loop on all avatar card videos + auto-restart
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.avatar-card video').forEach(v => {
-    v.loop = true;
-    v.muted = true;
-    v.playsInline = true;
-    v.onended = () => { v.currentTime = 0; v.play().catch(() => {}); };
-    v.onpause = () => { if (!document.hidden) v.play().catch(() => {}); };
-  });
-
-  // Handle Enter key + reset border on input
-  ['input-name', 'input-city'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') confirmCharacter();
-      });
-      el.addEventListener('input', () => {
-        el.style.borderColor = '';
-      });
-    }
-  });
-});
-
-// Re-play videos when tab becomes visible again
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) {
-    document.querySelectorAll('video').forEach(v => {
-      if (v.paused && v.src) v.play().catch(() => {});
-    });
-  }
-});

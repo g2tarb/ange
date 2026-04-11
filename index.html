@@ -28,6 +28,23 @@
   <span class="sound-off">&#9854;</span>
 </button>
 
+<!-- CTM Balance HUD (visible en jeu) -->
+<div class="ctm-hud" id="ctm-hud" style="display:none">
+  <span class="ctm-icon">&#9830;</span>
+  <span class="ctm-amount" id="ctm-amount">0</span>
+  <span class="ctm-label">CTM</span>
+  <button class="ctm-buy-btn" onclick="showShop()" title="Acheter des CTM">+</button>
+</div>
+
+<!-- Nav HUD (visible en jeu) -->
+<div class="nav-hud" id="nav-hud" style="display:none">
+  <button class="nav-btn" onclick="showScreen('screen-game')" title="Jeu">&#9775;</button>
+  <button class="nav-btn" onclick="showFriends()" title="Amis">&#9829;</button>
+  <button class="nav-btn" onclick="showLeaderboard()" title="Classement">&#9733;</button>
+  <button class="nav-btn" onclick="showShop()" title="Boutique">&#9830;</button>
+  <button class="nav-btn nav-logout" onclick="logout()" title="Déconnexion">&#10005;</button>
+</div>
+
 <!-- ============================================================
      SCREEN 0 — CINEMATIC INTRO
      ============================================================ -->
@@ -43,6 +60,62 @@
 </div>
 
 <!-- ============================================================
+     SCREEN AUTH — LOGIN / REGISTER
+     ============================================================ -->
+<div class="screen" id="screen-auth">
+  <div class="auth-container">
+    <div class="auth-symbol">&#9775;</div>
+    <div class="auth-title">ANIMUS</div>
+    <div class="auth-subtitle">L'Influence Invisible</div>
+
+    <!-- Login form -->
+    <div class="auth-form" id="auth-login">
+      <div class="auth-field">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" placeholder="ton@email.com" autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label for="login-password">Mot de passe</label>
+        <input type="password" id="login-password" placeholder="••••••" autocomplete="current-password">
+      </div>
+      <button class="btn-start visible" onclick="doLogin()">
+        <span class="btn-text">Se connecter</span>
+        <span class="btn-line"></span>
+      </button>
+      <div class="auth-switch">
+        Pas de compte ? <a href="#" onclick="showAuthForm('register')">Créer un compte</a>
+      </div>
+      <div class="auth-error" id="login-error"></div>
+    </div>
+
+    <!-- Register form -->
+    <div class="auth-form" id="auth-register" style="display:none">
+      <div class="auth-field">
+        <label for="reg-username">Pseudo</label>
+        <input type="text" id="reg-username" placeholder="Ton pseudo unique" maxlength="20" autocomplete="username">
+      </div>
+      <div class="auth-field">
+        <label for="reg-email">Email</label>
+        <input type="email" id="reg-email" placeholder="ton@email.com" autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label for="reg-password">Mot de passe</label>
+        <input type="password" id="reg-password" placeholder="Minimum 6 caractères" autocomplete="new-password">
+      </div>
+      <button class="btn-start visible" onclick="doRegister()">
+        <span class="btn-text">Créer mon compte</span>
+        <span class="btn-line"></span>
+      </button>
+      <div class="auth-bonus">&#9830; 25 CTM offerts à l'inscription !</div>
+      <div class="auth-switch">
+        Déjà un compte ? <a href="#" onclick="showAuthForm('login')">Se connecter</a>
+      </div>
+      <div class="auth-error" id="register-error"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
      SCREEN 0.1 — TUTORIAL
      ============================================================ -->
 <div class="screen" id="screen-tutorial">
@@ -52,23 +125,29 @@
       <div class="tuto-slide active" data-slide="0">
         <div class="tuto-icon">&#9775;</div>
         <h2>Le Concept</h2>
-        <p>Tu incarnes un humain de 16 ans. Une entite invisible guide tes choix a travers la vie. Chaque decision faconne ton destin, tes stats, et ton karma.</p>
+        <p>Tu incarnes un humain de 16 ans. Une entité invisible guide tes choix à travers la vie. Chaque décision façonne ton destin, tes stats, et ton karma.</p>
       </div>
 
       <div class="tuto-slide" data-slide="1">
         <div class="tuto-icon">&#128330; &#9878; &#129656; &#128293;</div>
-        <h2>4 Guides</h2>
-        <p><strong>Ange</strong> (1x/jour) &mdash; bonheur, amour<br>
-        <strong>Neutre</strong> (2x/jour) &mdash; calcul, equilibre<br>
-        <strong>Dechu</strong> (5x/jour) &mdash; tentation, chute<br>
-        <strong>Diable</strong> (illimite) &mdash; puissance, destruction<br><br>
-        Pour une belle vie, utilise l'Ange avec sagesse et reviens chaque jour.</p>
+        <h2>4 Guides — Système CTM</h2>
+        <p><strong>Ange</strong> (4 CTM/décision) &mdash; bonheur, amour<br>
+        <strong>Neutre</strong> (3 CTM/décision) &mdash; calcul, équilibre<br>
+        <strong>Déchu</strong> (1 CTM/décision) &mdash; tentation, chute<br>
+        <strong>Diable</strong> (GRATUIT) &mdash; puissance, destruction<br><br>
+        Chaque chapitre = 3 décisions. Le Diable est gratuit... mais à quel prix ?</p>
       </div>
 
       <div class="tuto-slide" data-slide="2">
-        <div class="tuto-icon">&#127769;</div>
-        <h2>5 Chapitres par Jour</h2>
-        <p>Chaque jour tu vis 5 chapitres. A la fin, une chronique raconte ta journee. Ton karma bloque le bonheur si tu sombres trop. Des evenements majeurs marquent chaque age de ta vie.</p>
+        <div class="tuto-icon">&#9829;</div>
+        <h2>Système Social</h2>
+        <p>Ajoute des amis. Leurs choix influencent ta vie. Un ami Diable peut te détruire. Un ami Ange peut te sauver. Choisis bien tes alliés.</p>
+      </div>
+
+      <div class="tuto-slide" data-slide="3">
+        <div class="tuto-icon">&#9733;</div>
+        <h2>Classement Hebdomadaire</h2>
+        <p>Chaque semaine, les 5 meilleures vies gagnent jusqu'à 10 000 CTM. Vis le plus longtemps, sois heureux, garde un bon karma. Le Top 1 devient l'Élu de la Semaine.</p>
       </div>
 
     </div>
@@ -77,10 +156,11 @@
       <span class="tuto-dot active" onclick="goToSlide(0)"></span>
       <span class="tuto-dot" onclick="goToSlide(1)"></span>
       <span class="tuto-dot" onclick="goToSlide(2)"></span>
+      <span class="tuto-dot" onclick="goToSlide(3)"></span>
     </div>
 
     <div class="tuto-nav">
-      <button class="tuto-btn" id="tuto-prev" onclick="prevSlide()" style="visibility:hidden">Precedent</button>
+      <button class="tuto-btn" id="tuto-prev" onclick="prevSlide()" style="visibility:hidden">Précédent</button>
       <button class="tuto-btn" id="tuto-next" onclick="nextSlide()">Suivant</button>
     </div>
   </div>
@@ -102,13 +182,13 @@
 
     <div class="char-field">
       <label for="input-city">Ta ville</label>
-      <input type="text" id="input-city" placeholder="Ou vis-tu ?" maxlength="30" autocomplete="off" spellcheck="false">
+      <input type="text" id="input-city" placeholder="Où vis-tu ?" maxlength="30" autocomplete="off" spellcheck="false">
     </div>
 
     <div class="char-age-display">
       <span class="char-age-number">16</span>
       <span class="char-age-unit">ans</span>
-      <span class="char-age-note">Le debut de tout...</span>
+      <span class="char-age-note">Le début de tout...</span>
     </div>
 
     <button class="btn-start visible" id="btn-character" onclick="confirmCharacter()">
@@ -120,13 +200,13 @@
     <div class="save-resume" id="save-resume" style="display:none">
       <div class="save-divider"><span>ou</span></div>
       <div class="save-card" id="save-card" onclick="resumeGame()">
-        <div class="save-card-header">Partie sauvegardee</div>
+        <div class="save-card-header">Partie sauvegardée</div>
         <div class="save-card-info">
-          <span class="save-name" id="save-name">—</span>
+          <span class="save-name" id="save-name">&mdash;</span>
           <span class="save-sep">&middot;</span>
-          <span class="save-detail" id="save-age">— ans</span>
+          <span class="save-detail" id="save-age">&mdash; ans</span>
           <span class="save-sep">&middot;</span>
-          <span class="save-detail" id="save-city">—</span>
+          <span class="save-detail" id="save-city">&mdash;</span>
         </div>
         <div class="save-card-stats" id="save-stats-preview"></div>
         <div class="save-card-day" id="save-day-preview">Jour 1</div>
@@ -146,9 +226,8 @@
   </div>
 
   <p class="intro-desc">
-    Une entite celeste guide les choix d'un humain a travers sa vie.<br>
-    Trois decisions par jour. Une existence entiere a faconner.<br>
-    <em>Qui sera ton ange gardien ?</em>
+    Choisis ton premier guide. Le coût en CTM varie selon la puissance.<br>
+    <em>Le Diable est gratuit... mais à quel prix ?</em>
   </p>
 
   <div class="avatar-select-grid" id="avatar-grid">
@@ -162,8 +241,9 @@
       </div>
       <div class="av-card-bottom">
         <div class="av-label">L'Ange Heureux</div>
-        <div class="av-influence">Bonheur &middot; Amour &middot; Prosperite</div>
-        <div class="av-desc">Guide vers la lumiere, il murmure des promesses de grace et de redemption.</div>
+        <div class="av-influence">Bonheur &middot; Amour &middot; Prospérité</div>
+        <div class="av-cost"><span class="ctm-icon">&#9830;</span> 4 CTM/décision &middot; 12 CTM/chapitre</div>
+        <div class="av-desc">Guide vers la lumière, il murmure des promesses de grâce et de rédemption.</div>
       </div>
       <div class="av-card-glow"></div>
     </div>
@@ -177,8 +257,9 @@
       </div>
       <div class="av-card-bottom">
         <div class="av-label">Le Neutre</div>
-        <div class="av-influence">Froid &middot; Calcul &middot; Equilibre</div>
-        <div class="av-desc">Ni bien, ni mal. Une equation froide qui observe sans juger.</div>
+        <div class="av-influence">Froid &middot; Calcul &middot; Équilibre</div>
+        <div class="av-cost"><span class="ctm-icon">&#9830;</span> 3 CTM/décision &middot; 9 CTM/chapitre</div>
+        <div class="av-desc">Ni bien, ni mal. Une équation froide qui observe sans juger.</div>
       </div>
       <div class="av-card-glow"></div>
     </div>
@@ -191,9 +272,10 @@
         <div class="av-placeholder">&#129656;</div>
       </div>
       <div class="av-card-bottom">
-        <div class="av-label">L'Ange Dechu</div>
+        <div class="av-label">L'Ange Déchu</div>
         <div class="av-influence">Addiction &middot; Chaos &middot; Chute</div>
-        <div class="av-desc">Beau et maudit, il chuchote la douceur de l'oubli et la beaute de la ruine.</div>
+        <div class="av-cost"><span class="ctm-icon">&#9830;</span> 1 CTM/décision &middot; 3 CTM/chapitre</div>
+        <div class="av-desc">Beau et maudit, il chuchote la douceur de l'oubli et la beauté de la ruine.</div>
       </div>
       <div class="av-card-glow"></div>
     </div>
@@ -208,7 +290,8 @@
       <div class="av-card-bottom">
         <div class="av-label">Le Diable</div>
         <div class="av-influence">Violence &middot; Crime &middot; Damnation</div>
-        <div class="av-desc">Flamme incarnee, il promet la puissance et ne laisse que des cendres.</div>
+        <div class="av-cost av-cost-free">GRATUIT &mdash; 0 CTM</div>
+        <div class="av-desc">Flamme incarnée, il promet la puissance et ne laisse que des cendres.</div>
       </div>
       <div class="av-card-glow"></div>
     </div>
@@ -240,16 +323,17 @@
     <div class="avatar-name-tag">
       <div class="name" id="avatar-display-name">L'Ange Heureux</div>
       <div class="tagline" id="avatar-display-tag">GUIDE CELESTE</div>
+      <div class="av-cost-tag" id="avatar-cost-tag">4 CTM/décision</div>
     </div>
 
     <!-- Avatar switcher -->
     <div class="avatar-switcher" id="avatar-switcher">
       <div class="switch-label">Changer de guide</div>
       <div class="switch-icons">
-        <button class="switch-btn" data-av="angel" onclick="switchAvatar('angel')" title="L'Ange Heureux">&#128330;</button>
-        <button class="switch-btn" data-av="neutral" onclick="switchAvatar('neutral')" title="Le Neutre">&#9878;</button>
-        <button class="switch-btn" data-av="fallen" onclick="switchAvatar('fallen')" title="L'Ange Dechu">&#129656;</button>
-        <button class="switch-btn" data-av="devil" onclick="switchAvatar('devil')" title="Le Diable">&#128293;</button>
+        <button class="switch-btn" data-av="angel" onclick="switchAvatar('angel')" title="L'Ange Heureux — 4 CTM">&#128330;<span class="switch-cost">4</span></button>
+        <button class="switch-btn" data-av="neutral" onclick="switchAvatar('neutral')" title="Le Neutre — 3 CTM">&#9878;<span class="switch-cost">3</span></button>
+        <button class="switch-btn" data-av="fallen" onclick="switchAvatar('fallen')" title="L'Ange Déchu — 1 CTM">&#129656;<span class="switch-cost">1</span></button>
+        <button class="switch-btn" data-av="devil" onclick="switchAvatar('devil')" title="Le Diable — GRATUIT">&#128293;<span class="switch-cost">0</span></button>
       </div>
     </div>
   </div>
@@ -259,11 +343,11 @@
 
     <!-- Character identity bar -->
     <div class="char-identity-bar" id="char-identity-bar">
-      <span class="ci-name" id="ci-name">—</span>
+      <span class="ci-name" id="ci-name">&mdash;</span>
       <span class="ci-sep">&middot;</span>
       <span class="ci-age" id="ci-age">16 ans</span>
       <span class="ci-sep">&middot;</span>
-      <span class="ci-city" id="ci-city">—</span>
+      <span class="ci-city" id="ci-city">&mdash;</span>
       <span class="ci-sep">&middot;</span>
       <span class="ci-title" id="ci-title"></span>
     </div>
@@ -275,7 +359,7 @@
       <div class="char-stats">
         <div class="stat-row" data-stat="health">
           <span class="stat-icon">&#9829;</span>
-          <span class="stat-label">Sante</span>
+          <span class="stat-label">Santé</span>
           <div class="stat-bar-track">
             <div class="stat-bar-fill" id="stat-health" style="width:80%"></div>
             <div class="stat-bar-glow" id="stat-health-glow"></div>
@@ -289,7 +373,7 @@
           <div class="stat-bar-track">
             <div class="stat-bar-fill" id="stat-happiness" style="width:75%"></div>
             <div class="stat-bar-glow" id="stat-happiness-glow"></div>
-            <div class="stat-bar-cap" id="stat-happiness-cap" title="Bonheur bloque par le karma"></div>
+            <div class="stat-bar-cap" id="stat-happiness-cap" title="Bonheur bloqué par le karma"></div>
           </div>
           <span class="stat-value" id="stat-happiness-val">75</span>
           <span class="stat-delta" id="stat-happiness-delta"></span>
@@ -307,7 +391,7 @@
         </div>
         <div class="stat-row" data-stat="morality">
           <span class="stat-icon">&#9775;</span>
-          <span class="stat-label">Moralite</span>
+          <span class="stat-label">Moralité</span>
           <div class="stat-bar-track">
             <div class="stat-bar-fill" id="stat-morality" style="width:70%"></div>
             <div class="stat-bar-glow" id="stat-morality-glow"></div>
@@ -333,7 +417,8 @@
         </div>
         <div class="day-counter">
           Jour <span id="day-display">1</span>
-          &middot; Chapitre <span id="chapter-display">0</span>/3
+          &middot; Chapitre <span id="chapter-display">0</span>/5
+          &middot; <span class="ctm-inline">&#9830; <span id="ctm-inline-val">0</span> CTM</span>
         </div>
       </div>
 
@@ -341,48 +426,221 @@
 
     <div class="section-divider"></div>
 
+    <!-- Friend event alert -->
+    <div class="friend-event-alert" id="friend-event-alert" style="display:none">
+      <div class="friend-event-icon">&#9829;</div>
+      <div class="friend-event-text" id="friend-event-text"></div>
+    </div>
+
     <!-- Chapter narrative -->
-    <div class="chapter-header" id="chapter-header">&#8212; Prologue &#8212;</div>
+    <div class="chapter-header" id="chapter-header">&mdash; Prologue &mdash;</div>
     <div class="chapter-text" id="chapter-text">
-      La lumiere du matin filtre a travers les rideaux.
-      Une nouvelle journee commence, et quelque chose d'invisible s'eveille a tes cotes...
+      La lumière du matin filtre à travers les rideaux.
+      Une nouvelle journée commence, et quelque chose d'invisible s'éveille à tes côtés...
     </div>
 
     <!-- Choices -->
     <div class="choices-header">
       Choisis ton destin
-      <span class="choices-remaining" id="choices-remaining-label">3 chapitres disponibles</span>
+      <span class="choices-remaining" id="choices-remaining-label">5 chapitres disponibles</span>
     </div>
 
     <div class="choices-grid" id="choices-grid">
       <button class="choice-btn" disabled>Chargement des choix...</button>
     </div>
 
+    <!-- CTM insufficient warning -->
+    <div class="ctm-warning" id="ctm-warning" style="display:none">
+      <div class="ctm-warning-icon">&#9830;</div>
+      <h3>CTM insuffisants</h3>
+      <p>Tu n'as pas assez de CTM pour cet avatar. <br>Change pour le Diable (gratuit) ou achète des CTM.</p>
+      <div class="ctm-warning-actions">
+        <button class="tuto-btn" onclick="switchAvatar('devil')">Jouer Diable (gratuit)</button>
+        <button class="tuto-btn ctm-buy-action" onclick="showShop()">Acheter des CTM</button>
+      </div>
+    </div>
+
     <!-- Daily limit message -->
     <div class="daily-limit-msg" id="daily-limit-msg">
       <div class="limit-icon">&#127769;</div>
-      <h3>La nuit est tombee</h3>
-      <p>Tu as vecu tes 3 chapitres du jour.<br>Reviens demain pour continuer ton destin.</p>
+      <h3>La nuit est tombée</h3>
+      <p>Tu as vécu tes 5 chapitres du jour.<br>Reviens demain pour continuer ton destin.</p>
     </div>
 
     <!-- History log -->
     <div class="history-section">
       <div class="history-title" id="history-toggle" onclick="toggleHistory()">
-        Journal des jours passes
+        Journal des jours passés
       </div>
       <div class="history-log" id="history-log"></div>
     </div>
 
-    <!-- Save actions -->
-    <div class="save-actions">
-      <span class="save-indicator" id="save-indicator">Sauvegarde auto</span>
-      <button class="save-btn" onclick="exportSave()" title="Exporter la sauvegarde">&#8681; Exporter</button>
-      <button class="save-btn" onclick="document.getElementById('import-file').click()" title="Importer une sauvegarde">&#8679; Importer</button>
-      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importSave(event)">
-    </div>
-
   </div>
 
+</div>
+
+<!-- ============================================================
+     SCREEN — SHOP (Boutique CTM)
+     ============================================================ -->
+<div class="screen" id="screen-shop">
+  <div class="shop-container">
+    <div class="shop-header">
+      <div class="shop-title">&#9830; Boutique CTM</div>
+      <div class="shop-balance">Solde : <span id="shop-balance">0</span> CTM</div>
+      <button class="shop-close" onclick="closeShop()">&times;</button>
+    </div>
+
+    <div class="shop-subtitle">Le bien a un prix. Le mal est gratuit.</div>
+
+    <div class="shop-grid" id="shop-grid">
+
+      <div class="shop-pack" onclick="buyPack('spark')">
+        <div class="pack-name">Étincelle</div>
+        <div class="pack-ctm">25 CTM</div>
+        <div class="pack-price">1 &euro;</div>
+        <div class="pack-desc">~2 chapitres Ange</div>
+      </div>
+
+      <div class="shop-pack pack-popular" onclick="buyPack('flame')">
+        <div class="pack-badge">Populaire</div>
+        <div class="pack-name">Flamme</div>
+        <div class="pack-ctm">80 CTM</div>
+        <div class="pack-price">2,99 &euro;</div>
+        <div class="pack-desc">~6 chapitres Ange</div>
+      </div>
+
+      <div class="shop-pack" onclick="buyPack('light')">
+        <div class="pack-name">Lumière</div>
+        <div class="pack-ctm">150 CTM</div>
+        <div class="pack-price">4,99 &euro;</div>
+        <div class="pack-desc">~12 chapitres Ange</div>
+      </div>
+
+      <div class="shop-pack pack-divine" onclick="buyPack('divine')">
+        <div class="pack-badge">Meilleur rapport</div>
+        <div class="pack-name">Divin</div>
+        <div class="pack-ctm">350 CTM</div>
+        <div class="pack-price">9,99 &euro;</div>
+        <div class="pack-desc">~29 chapitres Ange</div>
+      </div>
+
+    </div>
+
+    <div class="shop-costs">
+      <div class="shop-costs-title">Coût par décision</div>
+      <div class="shop-costs-grid">
+        <span>&#128330; Ange: 4 CTM</span>
+        <span>&#9878; Neutre: 3 CTM</span>
+        <span>&#129656; Déchu: 1 CTM</span>
+        <span>&#128293; Diable: GRATUIT</span>
+      </div>
+      <div class="shop-costs-note">1 chapitre = 3 décisions</div>
+    </div>
+
+    <div class="shop-free">
+      <div class="shop-free-title">CTM gratuits</div>
+      <div class="shop-free-grid">
+        <button class="shop-free-btn" id="btn-claim-daily" onclick="claimDaily()">
+          <span>&#127769; Login quotidien</span>
+          <span class="free-amount">+3 CTM</span>
+        </button>
+        <button class="shop-free-btn" onclick="shareForCTM()">
+          <span>&#8679; Partager</span>
+          <span class="free-amount">+5 CTM</span>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn-start visible" onclick="closeShop()">
+      <span class="btn-text">Retour au jeu</span>
+      <span class="btn-line"></span>
+    </button>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN — FRIENDS (Amis)
+     ============================================================ -->
+<div class="screen" id="screen-friends">
+  <div class="friends-container">
+    <div class="friends-header">
+      <div class="friends-title">&#9829; Amis</div>
+      <button class="shop-close" onclick="closeFriends()">&times;</button>
+    </div>
+
+    <!-- Search -->
+    <div class="friend-search">
+      <input type="text" id="friend-search-input" placeholder="Chercher un joueur par pseudo..." maxlength="20">
+      <button class="friend-search-btn" onclick="searchFriend()">Chercher</button>
+    </div>
+    <div class="friend-search-results" id="friend-search-results"></div>
+
+    <!-- Pending requests -->
+    <div class="friend-section" id="friend-pending-section" style="display:none">
+      <div class="friend-section-title">Demandes reçues</div>
+      <div class="friend-pending-list" id="friend-pending-list"></div>
+    </div>
+
+    <!-- Friends list -->
+    <div class="friend-section">
+      <div class="friend-section-title">Mes amis</div>
+      <div class="friend-list" id="friend-list">
+        <div class="friend-empty">Aucun ami pour le moment. Ajoute des joueurs !</div>
+      </div>
+    </div>
+
+    <div class="friend-warning">
+      Attention : les choix de tes amis influencent ta vie. Un ami Diable peut te détruire.
+    </div>
+
+    <button class="btn-start visible" onclick="closeFriends()">
+      <span class="btn-text">Retour au jeu</span>
+      <span class="btn-line"></span>
+    </button>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN — LEADERBOARD (Classement)
+     ============================================================ -->
+<div class="screen" id="screen-leaderboard">
+  <div class="lb-container">
+    <div class="lb-header">
+      <div class="lb-title">&#9733; Classement Hebdomadaire</div>
+      <button class="shop-close" onclick="closeLeaderboard()">&times;</button>
+    </div>
+
+    <div class="lb-prizes">
+      <div class="lb-prize"><span class="lb-rank">#1</span> 10 000 CTM + "Élu de la Semaine"</div>
+      <div class="lb-prize"><span class="lb-rank">#2</span> 5 000 CTM + "Âme Bénie"</div>
+      <div class="lb-prize"><span class="lb-rank">#3</span> 3 000 CTM + "Lumière"</div>
+      <div class="lb-prize"><span class="lb-rank">#4</span> 1 500 CTM</div>
+      <div class="lb-prize"><span class="lb-rank">#5</span> 1 000 CTM</div>
+    </div>
+
+    <!-- My rank -->
+    <div class="lb-my-rank" id="lb-my-rank" style="display:none">
+      <span class="lb-my-label">Ton classement :</span>
+      <span class="lb-my-position" id="lb-my-position">#—</span>
+      <span class="lb-my-score" id="lb-my-score">0 pts</span>
+    </div>
+
+    <!-- Leaderboard table -->
+    <div class="lb-table" id="lb-table">
+      <div class="lb-loading">Chargement du classement...</div>
+    </div>
+
+    <!-- Previous weeks -->
+    <div class="lb-history-section">
+      <div class="lb-history-title" onclick="toggleLBHistory()">Semaines précédentes</div>
+      <div class="lb-history" id="lb-history" style="display:none"></div>
+    </div>
+
+    <button class="btn-start visible" onclick="closeLeaderboard()">
+      <span class="btn-text">Retour au jeu</span>
+      <span class="btn-line"></span>
+    </button>
+  </div>
 </div>
 
 <!-- ============================================================
@@ -395,17 +653,17 @@
   <div class="go-content">
     <div class="go-symbol" id="go-symbol"></div>
     <div class="go-char-name" id="go-char-name"></div>
-    <div class="gameover-title" id="go-title">La Vie s'Acheve</div>
+    <div class="gameover-title" id="go-title">La Vie s'Achève</div>
     <p class="gameover-epitaph" id="go-epitaph"></p>
 
     <div class="gameover-stats">
       <div class="go-stat">
         <span class="go-val" id="go-age">16</span>
-        <span class="go-label">Age final</span>
+        <span class="go-label">Âge final</span>
       </div>
       <div class="go-stat">
         <span class="go-val" id="go-days">0</span>
-        <span class="go-label">Jours vecus</span>
+        <span class="go-label">Jours vécus</span>
       </div>
       <div class="go-stat">
         <span class="go-val" id="go-chapters">0</span>
@@ -426,7 +684,7 @@
 
     <div class="go-buttons">
       <button class="btn-restart" onclick="shareDeathCard()">
-        <span class="btn-text">&#8679; Partager</span>
+        <span class="btn-text">&#8679; Partager (+5 CTM)</span>
         <span class="btn-line"></span>
       </button>
       <button class="btn-restart" onclick="restartGame()">
@@ -455,7 +713,7 @@
     <div class="loading-ring">
       <div class="loading-ring-inner"></div>
     </div>
-    <div class="loading-text" id="loading-text">L'oracle consulte les etoiles...</div>
+    <div class="loading-text" id="loading-text">L'oracle consulte les étoiles...</div>
     <div class="loading-dots">
       <span></span><span></span><span></span>
     </div>
@@ -466,6 +724,17 @@
 <div class="notif" id="notif">
   <div class="notif-bar"></div>
   <span class="notif-text" id="notif-text"></span>
+</div>
+
+<!-- Daily bonus popup -->
+<div class="daily-bonus-overlay" id="daily-bonus-overlay" style="display:none">
+  <div class="daily-bonus-card">
+    <div class="daily-bonus-icon">&#127769;</div>
+    <div class="daily-bonus-title">Bonus quotidien !</div>
+    <div class="daily-bonus-amount">+3 CTM</div>
+    <div class="daily-bonus-text">Reviens chaque jour pour des CTM gratuits</div>
+    <button class="tuto-btn" onclick="closeDailyBonus()">Merci !</button>
+  </div>
 </div>
 
 <!-- Game script -->

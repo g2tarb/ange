@@ -1,0 +1,22 @@
+{
+  "name": "animus-server",
+  "version": "1.0.0",
+  "description": "ANIMUS — L'Influence Invisible — Backend API",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "@supabase/supabase-js": "^2.49.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "node-cron": "^3.0.3",
+    "dotenv": "^16.4.0",
+    "stripe": "^17.0.0"
+  }
+}
