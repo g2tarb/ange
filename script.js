@@ -52,9 +52,10 @@ async function api(path, options = {}) {
   const res = await fetch(url, config);
 
   if (res.status === 401) {
+    // Acces ouvert : on retire le token mort et on recharge pour qu'un nouveau guest soit cree
     clearToken();
-    showScreen('screen-auth');
-    throw new Error('Session expiree. Reconnecte-toi.');
+    setTimeout(() => location.reload(), 800);
+    throw new Error('Session expiree. Rechargement...');
   }
 
   if (!res.ok) {
@@ -779,7 +780,7 @@ async function doRegister() {
   }
 }
 
-function logout() {
+async function logout() {
   clearToken();
   gameState = null;
   ctmBalance = 0;
@@ -787,8 +788,33 @@ function logout() {
   selectedAvatar = null;
   prevStats = null;
   stopAmbient();
-  showNotif('Deconnecte.');
-  showScreen('screen-auth');
+  // Acces ouvert : on relance une session guest plutot que de retourner au portail
+  setLoading(true, 'Nouvelle session...');
+  try {
+    await ensureGuestSession();
+    await initGameAfterAuth();
+  } catch (e) {
+    showNotif('Erreur: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ============================================================
+// GUEST SESSION — accès ouvert sans portail de connexion
+// ============================================================
+async function ensureGuestSession() {
+  if (isLoggedIn()) return;
+  const rand = () => Math.random().toString(36).slice(2);
+  const id = rand().slice(0, 8);
+  const email = `guest-${id}-${Date.now()}@animus.local`;
+  const username = `Visiteur_${id.slice(0, 4)}`;
+  const password = rand() + rand();
+  const data = await api('/api/auth/register', {
+    method: 'POST',
+    body: { email, username, password },
+  });
+  setToken(data.token);
 }
 
 // ============================================================
@@ -864,7 +890,7 @@ async function loadGameState() {
 // ============================================================
 let cinematicDone = false;
 
-function skipCinematic() {
+async function skipCinematic() {
   if (cinematicDone) return;
   cinematicDone = true;
 
@@ -872,12 +898,16 @@ function skipCinematic() {
   playSFX('select');
   applyTheme('angel', false);
 
-  // Check if logged in
-  if (isLoggedIn()) {
-    setLoading(true, 'Chargement...');
-    initGameAfterAuth().finally(() => setLoading(false));
-  } else {
-    showScreen('screen-auth');
+  // Acces ouvert : on cree un guest a la volee si pas de session
+  setLoading(true, 'Chargement...');
+  try {
+    if (!isLoggedIn()) await ensureGuestSession();
+    await initGameAfterAuth();
+  } catch (e) {
+    console.error('Boot error:', e);
+    showNotif('Erreur de demarrage. ' + (e.message || ''));
+  } finally {
+    setLoading(false);
   }
 }
 
